@@ -27,7 +27,7 @@
 <body>
 <!-- Cross-device sync: login + cloud storage. Must load before the app script. -->
 <script>window.SYNC_CONFIG = { app: "pnl", name: "P&L", keys: ["ledger.trades.v1", "ledger.holdings.v1", "ledger.contrib.v1", "ledger.years.v1"] };</script>
-<script src="supabase-sync.js?v=1"></script>
+<script src="supabase-sync.js?v=2"></script>
 <style>
   /* ---------- reset (self-sufficient when opened as a local file) ---------- */
   *, *::before, *::after { box-sizing: border-box; }
@@ -277,7 +277,10 @@
   <section class="card">
     <div class="card-head">
       <h2>Current holdings</h2>
-      <span class="card-sub" id="holdingsTotal"></span>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <span class="card-sub" id="holdingsTotal"></span>
+        <button type="button" class="btn" id="refreshPricesBtn" title="Update each holding's value from the live market price">↻ Live prices</button>
+      </div>
     </div>
     <div class="table-wrap">
       <table id="holdingsTable">
@@ -287,6 +290,7 @@
         <tbody id="holdingsBody"></tbody>
       </table>
     </div>
+    <div id="priceNote" style="margin-top:8px; font-size:12px; opacity:.6;"></div>
     <details class="addform" id="holdingDetails" style="margin-top:14px;">
       <summary>Add a holding</summary>
       <form class="form-grid" id="holdingForm">
@@ -858,6 +862,37 @@
                     value: parseFloat(g("h-value")) || 0 });
     persistH(); renderHoldings(); this.reset();
   });
+
+  // ---------- live prices (updates each holding's Value = live price × shares) ----------
+  function setPriceNote(t) { var n = document.getElementById("priceNote"); if (n) n.textContent = t; }
+  function refreshPrices() {
+    var btn = document.getElementById("refreshPricesBtn");
+    if (!window.SyncPrices || !window.SyncPrices.getQuotes) { setPriceNote("Log in to fetch live prices."); return; }
+    var syms = [];
+    holdings.forEach(function (h) { if (h.symbol) syms.push(String(h.symbol).toUpperCase()); });
+    if (!syms.length) { setPriceNote("Add a holding first."); return; }
+    if (btn) { btn.disabled = true; btn.textContent = "↻ Updating…"; }
+    setPriceNote("Fetching live prices…");
+    window.SyncPrices.getQuotes(syms).then(function (prices) {
+      var updated = 0, missing = [];
+      holdings.forEach(function (h) {
+        var p = prices[String(h.symbol).toUpperCase()];
+        if (p != null && !isNaN(p) && h.shares !== "" && h.shares != null) {
+          h.value = Math.round(p * Number(h.shares) * 100) / 100; updated++;
+        } else if (p == null) { missing.push(h.symbol); }
+      });
+      persistH(); renderHoldings();
+      var now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      var msg = updated + (updated === 1 ? " holding" : " holdings") + " updated · " + now;
+      if (missing.length) msg += " · no price for " + missing.join(", ");
+      setPriceNote(msg);
+    }).catch(function () {
+      setPriceNote("Couldn't fetch prices — try again in a moment.");
+    }).then(function () {
+      if (btn) { btn.disabled = false; btn.textContent = "↻ Live prices"; }
+    });
+  }
+  document.getElementById("refreshPricesBtn").addEventListener("click", refreshPrices);
 
   // ---------- CSV ----------
   var FIELDS = ["openDate","symbol","direction","qty","entry","exit","closeDate","fees","manualPnl","strategy","notes"];

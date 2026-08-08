@@ -48,6 +48,14 @@
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
       auth: { persistSession: true, autoRefreshToken: true }
     });
+    // Live prices: the app calls this; the Twelve Data key stays server-side in the Edge Function.
+    window.SyncPrices = {
+      getQuotes: function (symbols) {
+        if (!sb || !currentUser) return Promise.reject(new Error("not signed in"));
+        return sb.functions.invoke("get-quotes", { body: { symbols: symbols } })
+          .then(function (r) { if (r.error) throw r.error; return (r.data && r.data.prices) || {}; });
+      }
+    };
     sb.auth.getSession().then(function (res) {
       var session = res.data && res.data.session;
       if (session) onLogin(session.user);
