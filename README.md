@@ -30,4 +30,5 @@ This is a personal journaling tool, **not financial advice**. It records what yo
 it does not recommend trades.
 
 ## License
-MIT — see `LICENSE`.
+Proprietary — © 2026 [Your Name], all rights reserved. Viewable for reference only;
+no permission to copy, modify, or reuse. See `LICENSE`.

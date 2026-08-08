@@ -1,21 +1,22 @@
-MIT License
+Copyright (c) 2026 [Your Name]. All rights reserved.
 
-Copyright (c) 2026 [Your Name]
+This software and its source code are the proprietary property of the copyright
+holder. The repository is made publicly viewable for reference and demonstration
+purposes only. Being able to view this code does NOT grant you any license to use it.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+You may NOT, without prior written permission from the copyright holder:
+  - copy, reproduce, republish, or redistribute the code or any substantial portion
+    of it;
+  - modify, adapt, translate, or create derivative works based on it;
+  - use it, in whole or in part, in any product, service, or application, whether
+    commercial or non-commercial;
+  - remove, obscure, or alter this notice or any copyright or attribution notices.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+No license or right, express or implied, to any patent, copyright, trademark, or
+other intellectual property is granted except as expressly stated above.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE
+LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM, OUT OF, OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
