@@ -116,13 +116,47 @@
   function schedulePush() {
     if (!ready) return;
     if (pushTimer) clearTimeout(pushTimer);
-    pushTimer = setTimeout(function () { push(); }, 800);
+    pushTimer = setTimeout(function () {
+      push().then(function (r) {
+        if (DEBUG) dbgShow("PUSHED — status " + (r && r.status) + (r && r.error ? " ERROR " + JSON.stringify(r.error) : " OK") +
+          " · sent length: " + ((gather()[KEYS[0]] || "").length) + " · " + new Date().toLocaleTimeString());
+      });
+    }, 800);
   }
 
   // Order-independent fingerprint of the app state (Postgres reorders JSON keys).
   function canon(o) {
     o = o || {};
     return JSON.stringify(KEYS.map(function (k) { return (k in o) ? o[k] : null; }));
+  }
+
+  /* ---------------- diagnostics (only active with ?debug in the URL) ---------------- */
+  var DEBUG = /[?&#]debug/i.test(window.location.href);
+  function dbgShow(text) {
+    if (!DEBUG) return;
+    var el = document.getElementById("sync-dbg");
+    if (!el) {
+      el = document.createElement("div"); el.id = "sync-dbg";
+      el.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:2147483600;background:rgba(0,0,0,.92);" +
+        "color:#4ADE80;font:11px/1.55 ui-monospace,Menlo,monospace;padding:10px 12px;white-space:pre-wrap;" +
+        "border-bottom:2px solid #4ADE80;";
+      (document.body || document.documentElement).appendChild(el);
+    }
+    el.textContent = text;
+  }
+  function diag(label, cloud) {
+    if (!DEBUG) return;
+    var g = gather(), k = KEYS[0];
+    var localLen = (g[k] || "").length;
+    var cloudLen = (cloud && cloud[k]) ? String(cloud[k]).length : 0;
+    dbgShow(
+      "SYNC DEBUG · " + label + "\n" +
+      "user: " + (currentUser ? currentUser.email : "—") + " · ready: " + ready + "\n" +
+      "cloud row: " + (cloud ? "EXISTS" : "NONE") + " · cloud data length: " + cloudLen + "\n" +
+      "phone/here data length: " + localLen + "\n" +
+      "IN SYNC: " + (canon(cloud || {}) === canon(g) ? "YES ✓" : "NO — DIFFERS ✗") + "\n" +
+      new Date().toLocaleTimeString()
+    );
   }
 
   // Re-render the app in place with whatever is now in storage. No page reload — reloads are
@@ -137,8 +171,9 @@
   function syncFromCloud() {
     if (!currentUser) return Promise.resolve();
     return pull().then(function (cloud) {
-      if (cloud && canon(cloud) !== canon(gather())) { applyCloud(cloud); rerender(); }
-    }).catch(function () {});
+      diag("returned to app", cloud);
+      if (cloud && canon(cloud) !== canon(gather())) { applyCloud(cloud); rerender(); diag("resync applied", cloud); }
+    }).catch(function (e) { dbgShow("resync pull FAILED: " + (e && e.message)); });
   }
 
   function onLogin(user) {
@@ -151,8 +186,10 @@
       ready = true;
       hideOverlay();
       showBadge(user.email);
-    }).catch(function () {
+      diag("after login", cloud);
+    }).catch(function (e) {
       ready = true; hideOverlay(); showBadge(user.email);
+      dbgShow("login pull FAILED: " + (e && e.message));
     });
   }
 
