@@ -197,9 +197,10 @@
       + "font-size:16px;font-weight:700;cursor:pointer;}"
       + "#sync-primary:disabled{opacity:.5;cursor:default;}"
       + "#sync-card .sync-pw-wrap{position:relative;margin:7px 0;}"
-      + "#sync-card .sync-pw-wrap input{margin:0;padding-right:70px;}"
-      + "#sync-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:rgba(127,140,170,.16);"
-      + "border-radius:8px;color:#2FD3E1;font:600 13px -apple-system,sans-serif;cursor:pointer;padding:7px 10px;}"
+      + "#sync-card .sync-pw-wrap input{margin:0;padding-right:46px;}"
+      + "#sync-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;"
+      + "color:#8FA0BC;cursor:pointer;padding:6px;display:flex;align-items:center;justify-content:center;line-height:0;}"
+      + "#sync-eye:hover,#sync-eye:focus{color:#2FD3E1;}"
       + "#sync-card .sync-big-emoji{font-size:38px;margin-bottom:8px;line-height:1;}"
       + "#sync-toggle{margin-top:16px;font-size:14px;opacity:.8;}"
       + "#sync-toggle a{color:#2FD3E1;cursor:pointer;font-weight:600;text-decoration:none;}"
@@ -231,6 +232,9 @@
     overlay.style.display = "flex";
   }
 
+  var EYE = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var EYE_OFF = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
   var authMode = "login";
   function showLogin() {
     overlay.style.display = "flex";
@@ -243,7 +247,7 @@
         '<input id="sync-email" type="email" autocomplete="email" placeholder="Email" />' +
         '<div class="sync-pw-wrap">' +
           '<input id="sync-pw" type="password" autocomplete="' + (isSignup ? "new-password" : "current-password") + '" placeholder="Password" />' +
-          '<button type="button" id="sync-eye" aria-label="Show or hide password" tabindex="-1">Show</button>' +
+          '<button type="button" id="sync-eye" aria-label="Show password" tabindex="-1">' + EYE + '</button>' +
         '</div>' +
         '<button id="sync-primary">' + (isSignup ? "Sign up" : "Log in") + '</button>' +
         '<div id="sync-err"></div>' +
@@ -257,8 +261,8 @@
       var eye = document.getElementById("sync-eye");
       eye.onclick = function () {
         var pw = document.getElementById("sync-pw");
-        if (pw.type === "password") { pw.type = "text"; eye.textContent = "Hide"; }
-        else { pw.type = "password"; eye.textContent = "Show"; }
+        if (pw.type === "password") { pw.type = "text"; eye.innerHTML = EYE_OFF; eye.setAttribute("aria-label", "Hide password"); }
+        else { pw.type = "password"; eye.innerHTML = EYE; eye.setAttribute("aria-label", "Show password"); }
       };
     }
   }
