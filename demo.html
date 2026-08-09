@@ -179,6 +179,9 @@
      (which iOS otherwise collapses to a tiny width) stays full column width, showing
      its gray mm/dd/yyyy preset just like the other fields. */
   .field input[type="date"]::-webkit-date-and-time-value { width: 100%; text-align: left; margin: 0; }
+  /* Gray mm/dd/yyyy preset (matches the other placeholders) + gray calendar icon. */
+  .field input[type="date"]::-webkit-datetime-edit { color: var(--ink-faint); }
+  .field input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); opacity: .6; cursor: pointer; }
   .field input:focus, .field select:focus { border-color: var(--accent); outline: none; }
   .field input::placeholder { color: var(--ink-faint); }
   .form-actions { grid-column: 1 / -1; display: flex; gap: 10px; }
