@@ -156,7 +156,8 @@
     if (pw.length < 6) { setError("Password must be at least 6 characters."); return; }
     setError(""); setBusy(true);
     var p = mode === "signup"
-      ? sb.auth.signUp({ email: email, password: pw })
+      ? sb.auth.signUp({ email: email, password: pw,
+          options: { emailRedirectTo: window.location.origin + window.location.pathname } })
       : sb.auth.signInWithPassword({ email: email, password: pw });
     p.then(function (res) {
       setBusy(false);
@@ -270,17 +271,23 @@
   // Shown after signup (justSignedUp=true) OR when login fails because the email isn't confirmed.
   function renderConfirmPanel(email, justSignedUp) {
     overlay.style.display = "flex";
+    var lead = justSignedUp
+      ? "Check your email to confirm your account. We sent a link to"
+      : "Your email isn’t confirmed yet. We sent a link to";
+    var tail = justSignedUp
+      ? "Tap the link (check spam too) — you’ll be signed in automatically."
+      : "Tap the link (check spam too), then come back and log in.";
     document.getElementById("sync-body").innerHTML =
       '<div class="sync-big-emoji">✉️</div>' +
-      '<h1>' + (justSignedUp ? "Almost there!" : "Confirm your email") + '</h1>' +
-      '<p class="sub">' +
-        (justSignedUp ? "We just sent a confirmation link to" : "Your email isn’t confirmed yet. We sent a link to") +
-        '<br><b>' + esc(email) + '</b><br>Tap it (check spam too), then come back and log in.</p>' +
+      '<h1>Confirm your email</h1>' +
+      '<p class="sub">' + lead + '<br><b>' + esc(email) + '</b><br>' + tail + '</p>' +
       '<button id="sync-primary">Resend the email</button>' +
       '<div id="sync-err"></div>' +
-      '<div id="sync-toggle"><a id="sync-back">Back to log in</a></div>';
+      // After signup we intentionally offer NO "log in" path — the user must confirm first.
+      (justSignedUp ? '' : '<div id="sync-toggle"><a id="sync-back">Back to log in</a></div>');
     document.getElementById("sync-primary").onclick = function () { resendConfirm(email); };
-    document.getElementById("sync-back").onclick = function () { authMode = "login"; showLogin(); };
+    var back = document.getElementById("sync-back");
+    if (back) back.onclick = function () { authMode = "login"; showLogin(); };
   }
 
   function resendConfirm(email) {
