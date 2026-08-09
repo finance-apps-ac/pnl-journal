@@ -175,6 +175,10 @@
      (overflows the column), then too narrow once appearance is removed and the field is
      empty. Removing the appearance AND pinning min-width keeps them full-column-width always. */
   .field input[type="date"] { -webkit-appearance: none; appearance: none; min-width: 100%; box-sizing: border-box; }
+  /* Force the date value/placeholder area to fill the field so an EMPTY date input
+     (which iOS otherwise collapses to a tiny width) stays full column width, showing
+     its gray mm/dd/yyyy preset just like the other fields. */
+  .field input[type="date"]::-webkit-date-and-time-value { width: 100%; text-align: left; margin: 0; }
   .field input:focus, .field select:focus { border-color: var(--accent); outline: none; }
   .field input::placeholder { color: var(--ink-faint); }
   .form-actions { grid-column: 1 / -1; display: flex; gap: 10px; }
