@@ -160,9 +160,14 @@
       : sb.auth.signInWithPassword({ email: email, password: pw });
     p.then(function (res) {
       setBusy(false);
-      if (res.error) { setError(res.error.message); return; }
+      if (res.error) {
+        var m = res.error.message || "";
+        if (/not confirmed/i.test(m)) { renderConfirmPanel(email, false); return; }
+        setError(m);
+        return;
+      }
       if (mode === "signup" && res.data.user && !res.data.session) {
-        setInfo("Account created! Check your email to confirm it, then log in.");
+        renderConfirmPanel(email, true);
         return;
       }
       // onAuthStateChange handles the logged-in case
@@ -191,6 +196,11 @@
       + "#sync-primary{width:100%;padding:13px;margin-top:12px;border:0;border-radius:12px;background:#2FD3E1;color:#04222A;"
       + "font-size:16px;font-weight:700;cursor:pointer;}"
       + "#sync-primary:disabled{opacity:.5;cursor:default;}"
+      + "#sync-card .sync-pw-wrap{position:relative;margin:7px 0;}"
+      + "#sync-card .sync-pw-wrap input{margin:0;padding-right:70px;}"
+      + "#sync-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:rgba(127,140,170,.16);"
+      + "border-radius:8px;color:#2FD3E1;font:600 13px -apple-system,sans-serif;cursor:pointer;padding:7px 10px;}"
+      + "#sync-card .sync-big-emoji{font-size:38px;margin-bottom:8px;line-height:1;}"
       + "#sync-toggle{margin-top:16px;font-size:14px;opacity:.8;}"
       + "#sync-toggle a{color:#2FD3E1;cursor:pointer;font-weight:600;text-decoration:none;}"
       + "#sync-err{min-height:18px;margin-top:12px;font-size:13px;color:#FF7A8C;}"
@@ -231,7 +241,10 @@
         '<h1>' + esc(cfg.name) + '</h1>' +
         '<p class="sub">' + (isSignup ? "Create your account" : "Log in to sync across your devices") + '</p>' +
         '<input id="sync-email" type="email" autocomplete="email" placeholder="Email" />' +
-        '<input id="sync-pw" type="password" autocomplete="' + (isSignup ? "new-password" : "current-password") + '" placeholder="Password" />' +
+        '<div class="sync-pw-wrap">' +
+          '<input id="sync-pw" type="password" autocomplete="' + (isSignup ? "new-password" : "current-password") + '" placeholder="Password" />' +
+          '<button type="button" id="sync-eye" aria-label="Show or hide password" tabindex="-1">Show</button>' +
+        '</div>' +
         '<button id="sync-primary">' + (isSignup ? "Sign up" : "Log in") + '</button>' +
         '<div id="sync-err"></div>' +
         '<div id="sync-toggle">' +
@@ -241,7 +254,38 @@
       document.getElementById("sync-primary").onclick = function () { doAuth(authMode); };
       document.getElementById("sync-swap").onclick = function () { authMode = isSignup ? "login" : "signup"; render(); };
       document.getElementById("sync-pw").onkeydown = function (e) { if (e.key === "Enter") doAuth(authMode); };
+      var eye = document.getElementById("sync-eye");
+      eye.onclick = function () {
+        var pw = document.getElementById("sync-pw");
+        if (pw.type === "password") { pw.type = "text"; eye.textContent = "Hide"; }
+        else { pw.type = "password"; eye.textContent = "Show"; }
+      };
     }
+  }
+
+  // Shown after signup (justSignedUp=true) OR when login fails because the email isn't confirmed.
+  function renderConfirmPanel(email, justSignedUp) {
+    overlay.style.display = "flex";
+    document.getElementById("sync-body").innerHTML =
+      '<div class="sync-big-emoji">✉️</div>' +
+      '<h1>' + (justSignedUp ? "Almost there!" : "Confirm your email") + '</h1>' +
+      '<p class="sub">' +
+        (justSignedUp ? "We just sent a confirmation link to" : "Your email isn’t confirmed yet. We sent a link to") +
+        '<br><b>' + esc(email) + '</b><br>Tap it (check spam too), then come back and log in.</p>' +
+      '<button id="sync-primary">Resend the email</button>' +
+      '<div id="sync-err"></div>' +
+      '<div id="sync-toggle"><a id="sync-back">Back to log in</a></div>';
+    document.getElementById("sync-primary").onclick = function () { resendConfirm(email); };
+    document.getElementById("sync-back").onclick = function () { authMode = "login"; showLogin(); };
+  }
+
+  function resendConfirm(email) {
+    setError(""); setBusy(true);
+    sb.auth.resend({ type: "signup", email: email }).then(function (res) {
+      setBusy(false);
+      if (res.error) setError(res.error.message);
+      else setInfo("Sent! Check your inbox and spam for the link.");
+    }).catch(function () { setBusy(false); setError("Couldn't resend — try again in a moment."); });
   }
 
   function setError(m) { var e = document.getElementById("sync-err"); if (e) { e.textContent = m; e.style.color = ""; } }
@@ -249,7 +293,9 @@
   function setMessage(m) { document.getElementById("sync-body").innerHTML = '<p class="sub">' + esc(m) + '</p>'; }
   function setBusy(b) {
     var btn = document.getElementById("sync-primary");
-    if (btn) { btn.disabled = b; btn.textContent = b ? "…" : (authMode === "signup" ? "Sign up" : "Log in"); }
+    if (!btn) return;
+    if (b) { btn.setAttribute("data-label", btn.textContent); btn.disabled = true; btn.textContent = "…"; }
+    else { btn.disabled = false; var l = btn.getAttribute("data-label"); if (l) btn.textContent = l; }
   }
   function hideOverlay() { overlay.style.display = "none"; }
 
