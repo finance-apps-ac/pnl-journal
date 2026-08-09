@@ -171,6 +171,9 @@
   .field label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-soft); }
   .field input, .field select { background: var(--surface-2); border: 1px solid var(--border);
           border-radius: 8px; padding: 8px 10px; font-size: 13.5px; width: 100%; min-width: 0; max-width: 100%; }
+  /* iOS Safari gives date inputs a large intrinsic width that overflows the grid column;
+     removing the native appearance makes them honor width:100% and fit like every other field. */
+  .field input[type="date"] { -webkit-appearance: none; appearance: none; }
   .field input:focus, .field select:focus { border-color: var(--accent); outline: none; }
   .field input::placeholder { color: var(--ink-faint); }
   .form-actions { grid-column: 1 / -1; display: flex; gap: 10px; }
@@ -238,9 +241,6 @@
     .tagline { font-size: 10px; letter-spacing: .2px; }
     .topbar-actions { gap: 7px; }
     .topbar-actions .btn, .topbar-actions select { padding: 7px 10px; font-size: 12.5px; min-height: 36px; }
-    /* One field per row on phones — no column overlap possible (iOS date inputs). */
-    .form-grid { grid-template-columns: 1fr; }
-    .field.wide { grid-column: span 1; }
   }
 </style>
 
@@ -362,9 +362,9 @@
       <summary>Add a past trade — P&amp;L only (no entry/exit needed)</summary>
       <form class="form-grid" id="pnlForm">
         <div class="field"><label for="p-date">Date</label><input type="date" id="p-date" required></div>
-        <div class="field wide"><label for="p-label">Symbol / ticker</label><input type="text" id="p-label" placeholder="e.g. ALLO" autocapitalize="characters" spellcheck="false"></div>
+        <div class="field"><label for="p-label">Symbol / ticker</label><input type="text" id="p-label" placeholder="e.g. ALLO" autocapitalize="characters" spellcheck="false"></div>
         <div class="field"><label for="p-amount">Realized P&amp;L ($)</label><input type="number" id="p-amount" step="any" placeholder="e.g. 468 or -120" required></div>
-        <div class="field wide"><label for="p-notes">Notes</label><input type="text" id="p-notes" placeholder="e.g. monthly total"></div>
+        <div class="field"><label for="p-notes">Notes</label><input type="text" id="p-notes" placeholder="e.g. monthly total"></div>
         <div class="form-actions">
           <button type="submit" class="btn primary">Add trade</button>
           <button type="reset" class="btn">Clear</button>
