@@ -118,17 +118,23 @@
     return JSON.stringify(KEYS.map(function (k) { return (k in o) ? o[k] : null; }));
   }
 
+  var appliedKey;
   function onLogin(user) {
     currentUser = user;
     showLoading();
-    var guardKey = "sync-initial-" + cfg.app;
+    appliedKey = "sync-applied-" + cfg.app;
     pull().then(function (cloud) {
-      var differs = cloud && canon(cloud) !== canon(gather());
-      if (differs) applyCloud(cloud);
-      if (differs && !sessionStorage.getItem(guardKey)) {
-        sessionStorage.setItem(guardKey, "1");   // re-render once with synced data; never loop
-        location.reload();
-        return;
+      if (cloud && canon(cloud) !== canon(gather())) {
+        applyCloud(cloud);
+        var hash = canon(cloud);
+        // Reload to re-render with the synced data — but only when this is a NEW cloud
+        // state we haven't already applied. Content-aware so refreshes still pick up
+        // updates from another device, while a repeated identical state can't loop.
+        if (sessionStorage.getItem(appliedKey) !== hash) {
+          sessionStorage.setItem(appliedKey, hash);
+          location.reload();
+          return;
+        }
       }
       if (!cloud) push();             // first sign-in: seed the cloud from this device
       subscribeRealtime();
@@ -148,6 +154,7 @@
           var cloud = payload["new"] && payload["new"].data;
           if (cloud && canon(cloud) !== canon(gather())) {
             applyCloud(cloud);
+            try { sessionStorage.setItem(appliedKey, canon(cloud)); } catch (e) {}
             location.reload();
           }
         })
