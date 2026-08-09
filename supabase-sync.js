@@ -21,6 +21,8 @@
   var ready = false;          // true once the initial pull is done (gates pushes)
   var applyingRemote = false; // true while writing cloud data into localStorage
   var pushTimer = null;
+  var loggedInOnce = false;      // auth can fire the login twice — run it only once
+  var realtimeSubscribed = false;
 
   /* ---- 1. Install the localStorage hook SYNCHRONOUSLY (before the app runs) ---- */
   var origSet = window.localStorage.setItem.bind(window.localStorage);
@@ -177,12 +179,14 @@
   }
 
   function onLogin(user) {
+    if (loggedInOnce) return;       // auth events can fire this twice — run once
+    loggedInOnce = true;
     currentUser = user;
     showLoading();
     pull().then(function (cloud) {
       if (cloud && canon(cloud) !== canon(gather())) { applyCloud(cloud); rerender(); }
       else if (!cloud) push();        // first sign-in: seed the cloud from this device
-      subscribeRealtime();
+      subscribeRealtime();            // best-effort; never throws
       ready = true;
       hideOverlay();
       showBadge(user.email);
@@ -194,14 +198,18 @@
   }
 
   function subscribeRealtime() {
-    sb.channel("sync_" + cfg.app)
-      .on("postgres_changes",
-        { event: "*", schema: "public", table: "user_data", filter: "app=eq." + cfg.app },
-        function (payload) {
-          var cloud = payload["new"] && payload["new"].data;
-          if (cloud && canon(cloud) !== canon(gather())) { applyCloud(cloud); rerender(); }
-        })
-      .subscribe();
+    if (realtimeSubscribed) return;   // subscribe exactly once — re-subscribing throws
+    realtimeSubscribed = true;
+    try {
+      sb.channel("sync_" + cfg.app)
+        .on("postgres_changes",
+          { event: "*", schema: "public", table: "user_data", filter: "app=eq." + cfg.app },
+          function (payload) {
+            var cloud = payload["new"] && payload["new"].data;
+            if (cloud && canon(cloud) !== canon(gather())) { applyCloud(cloud); rerender(); }
+          })
+        .subscribe();
+    } catch (e) { /* realtime is best-effort; the foreground/focus re-pull covers gaps */ }
   }
 
   /* ---------------- auth UI ---------------- */
