@@ -171,9 +171,10 @@
   .field label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-soft); }
   .field input, .field select { background: var(--surface-2); border: 1px solid var(--border);
           border-radius: 8px; padding: 8px 10px; font-size: 13.5px; width: 100%; min-width: 0; max-width: 100%; }
-  /* iOS Safari gives date inputs a large intrinsic width that overflows the grid column;
-     removing the native appearance makes them honor width:100% and fit like every other field. */
-  .field input[type="date"] { -webkit-appearance: none; appearance: none; }
+  /* iOS Safari sizes date inputs to their content: too wide with the native appearance
+     (overflows the column), then too narrow once appearance is removed and the field is
+     empty. Removing the appearance AND pinning min-width keeps them full-column-width always. */
+  .field input[type="date"] { -webkit-appearance: none; appearance: none; min-width: 100%; box-sizing: border-box; }
   .field input:focus, .field select:focus { border-color: var(--accent); outline: none; }
   .field input::placeholder { color: var(--ink-faint); }
   .form-actions { grid-column: 1 / -1; display: flex; gap: 10px; }
