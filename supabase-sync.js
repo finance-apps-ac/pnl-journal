@@ -6,14 +6,18 @@
    Each app sets, BEFORE loading this file:
      window.SYNC_CONFIG = { app: 'pnl'|'budget', name: 'P&L', keys: [ ...localStorage keys... ] };
 
-   FIXES (2026-08-09):
-   - Force immediate push on visibility hidden / pagehide (iOS kills timers).
-   - Conflict resolution by a PERSISTED last-edited timestamp: the side that was
-     actually edited more recently wins. The timestamp is written only on a real
-     user edit and read back on compare — never regenerated — so an empty device
-     can never look "newer" and overwrite real cloud data.
-   - A `dirty` flag means we only ever push when this device has genuine unpushed
-     edits, so backgrounding a stale tab can't clobber a newer device.
+   SYNC MODEL:
+   - Ordering is by the SERVER's updated_at (stamped by Postgres on every write),
+     never by any device's Date.now(). Device clocks drift — a phone slightly behind
+     a laptop made the phone's writes look "older" and get ignored (one-directional
+     sync). Comparing server timestamps removes that entirely.
+   - Each device remembers the updated_at it currently mirrors (SEEN_KEY); "did the
+     cloud change since I last saw it?" is a pure server-timestamp compare.
+   - A `dirty` flag means we only push when this device has genuine unpushed edits,
+     so backgrounding a stale tab can't clobber a newer device.
+   - Force-push on visibility hidden / pagehide (iOS kills timers), and logout()
+     FLUSHES any pending edit before wiping local — so a trade added seconds before
+     logout is never lost.
    =========================================================================== */
 (function () {
   "use strict";
@@ -23,7 +27,10 @@
 
   var cfg  = window.SYNC_CONFIG || { app: "app", name: "App", keys: [] };
   var KEYS = cfg.keys || [];
-  var MTIME_KEY = "__sync_mtime_" + cfg.app;   // persisted "last user edit" time (NOT an app data key)
+  // The SERVER's updated_at that this device currently mirrors. Ordering is done by the
+  // server clock (identical for every device) — never by Date.now(), which drifts between
+  // a phone, a laptop and an Android and caused one-directional "sync".  (NOT an app data key.)
+  var SEEN_KEY = "__sync_seen_" + cfg.app;
 
   var sb = null;
   var currentUser = null;
@@ -47,11 +54,10 @@
     if (!applyingRemote && KEYS.indexOf(k) >= 0) onLocalEdit();
   };
   // A genuine user edit (only counts once the app is live — boot-time seeding is ignored,
-  // otherwise an empty device would stamp "now" and overwrite the cloud).
+  // otherwise a freshly-loaded empty device would look "dirty" and overwrite the cloud).
   function onLocalEdit() {
     if (!ready) return;
     dirty = true;
-    origSet(MTIME_KEY, String(Date.now()));  // bump the persisted last-edited time
     schedulePush();
   }
 
@@ -114,55 +120,60 @@
   }
 
   /* ---------------- sync core ---------------- */
+  // Ordering rule: the CLOUD row carries a server-stamped `updated_at`. Each device remembers
+  // the updated_at it currently mirrors (SEEN_KEY). "Has the cloud changed since I last saw it?"
+  // is a pure string compare of server timestamps — no device clock is ever consulted, so phone,
+  // laptop and Android all agree on who is newer.
   function gather() {
     var o = {};
     KEYS.forEach(function (k) {
       var v = origGet(k);
       if (v !== null) o[k] = v;
     });
-    // Persisted last-edited time — READ, never regenerated. This is the only source of
-    // truth for "which side is newer". 0 means "never edited on this device".
-    o.__ts = getStoredMtime();
     return o;
   }
   function origGet(k) { return window.localStorage.getItem(k); }
-  function getStoredMtime() { var n = Number(origGet(MTIME_KEY)); return isNaN(n) ? 0 : n; }
+  function getSeen() { return origGet(SEEN_KEY); }
+  function setSeen(ts) { if (ts) origSet(SEEN_KEY, String(ts)); }
 
-  function getTs(obj) {
-    if (!obj || obj.__ts == null) return 0;
-    var n = Number(obj.__ts);
-    return isNaN(n) ? 0 : n;
-  }
-
-  function applyCloud(obj) {
+  function applyCloud(data, updatedAt) {
     applyingRemote = true;
+    // Replace every synced key: keys present in the cloud are written; keys the cloud no longer
+    // has are removed, so a delete on one device propagates instead of lingering here.
     KEYS.forEach(function (k) {
-      if (obj && Object.prototype.hasOwnProperty.call(obj, k)) origSet(k, obj[k]);
+      if (data && Object.prototype.hasOwnProperty.call(data, k)) origSet(k, data[k]);
+      else origRemove(k);
     });
-    // Adopt the cloud's edit time so this device now matches it — no false "I'm newer" next compare.
-    origSet(MTIME_KEY, String(getTs(obj)));
-    dirty = false;              // we're now in sync with the cloud; nothing local to push
+    if (updatedAt) origSet(SEEN_KEY, String(updatedAt));   // we now mirror this exact cloud version
+    dirty = false;                                          // nothing local left to push
     applyingRemote = false;
   }
   function clearLocal() {
     applyingRemote = true;
     KEYS.forEach(function (k) { origRemove(k); });
-    origRemove(MTIME_KEY);      // don't leave one customer's edit-time for the next person
+    origRemove(SEEN_KEY);       // don't leave one customer's sync marker for the next person
     dirty = false;
     applyingRemote = false;
   }
 
+  // pull() → { data, updated_at } or null
   function pull() {
-    return sb.from("user_data").select("data").eq("app", cfg.app).maybeSingle()
-      .then(function (res) { return res.data ? res.data.data : null; });
+    return sb.from("user_data").select("data,updated_at").eq("app", cfg.app).maybeSingle()
+      .then(function (res) { return res.data || null; });
   }
+  // push() writes local state up and records the server's new updated_at as "seen".
   function push() {
     if (!currentUser) return Promise.resolve();
     return sb.from("user_data").upsert(
       { user_id: currentUser.id, app: cfg.app, data: gather() },
       { onConflict: "user_id,app" }
-    ).then(function (r) {
-      if (r && !r.error) dirty = false;   // confirmed in the cloud
+    ).select("updated_at").maybeSingle().then(function (r) {
+      if (r && !r.error) {
+        dirty = false;                                      // confirmed in the cloud
+        if (r.data && r.data.updated_at) setSeen(r.data.updated_at);
+      }
+      if (DEBUG) dbgShow("PUSHED — " + (r && r.error ? "ERROR " + JSON.stringify(r.error) : "OK, seen=" + (r.data && r.data.updated_at)) +
+        " · " + new Date().toLocaleTimeString());
       return r;
     });
   }
@@ -171,30 +182,46 @@
   function schedulePush() {
     if (!ready || !dirty) return;
     if (pushTimer) clearTimeout(pushTimer);
-    pushTimer = setTimeout(function () {
-      pushTimer = null;
-      push().then(function (r) {
-        if (DEBUG) dbgShow("PUSHED — status " + (r && r.status) + (r && r.error ? " ERROR " + JSON.stringify(r.error) : " OK") +
-          " · sent length: " + ((gather()[KEYS[0]] || "").length) + " · " + new Date().toLocaleTimeString());
-      });
-    }, 800);
+    pushTimer = setTimeout(function () { pushTimer = null; push(); }, 800);
   }
 
   // Used on hide / pagehide — cancel any pending debounce and push immediately,
   // but ONLY if this device actually has unpushed edits (never clobber a newer device).
   function forcePush() {
-    if (!ready || !currentUser || !dirty) return;
+    if (!ready || !currentUser || !dirty) return Promise.resolve();
     if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
-    push().then(function (r) {
-      if (DEBUG) dbgShow("FORCE-PUSH — status " + (r && r.status) + (r && r.error ? " ERROR " + JSON.stringify(r.error) : " OK") +
-        " · " + new Date().toLocaleTimeString());
-    });
+    return push();
   }
 
-  // Order-independent fingerprint of the app state (ignores __ts — it only looks at KEYS).
+  // Order-independent fingerprint of the app state (only looks at KEYS).
   function canon(o) {
     o = o || {};
     return JSON.stringify(KEYS.map(function (k) { return (k in o) ? o[k] : null; }));
+  }
+
+  // The single decision used on login, on returning to the app, and on every realtime event.
+  // Compares the server's updated_at (via SEEN_KEY) — no device clocks.
+  function reconcile(row) {
+    var local = gather();
+    if (!row) {
+      // No cloud row yet. Seed it if this device actually holds data (or has pending edits).
+      if (dirty || KEYS.some(function (k) { return origGet(k) !== null; })) return push();
+      return Promise.resolve();
+    }
+    var cloudMoved = (row.updated_at !== getSeen());        // cloud changed since we last synced?
+    var differs = (canon(row.data) !== canon(local));
+
+    if (dirty) {
+      // This device has edits the user just made and is looking at → they win. Push them up.
+      return push();
+    }
+    if (cloudMoved && differs) {
+      applyCloud(row.data, row.updated_at);                 // another device changed things → take it
+      rerender();
+      return Promise.resolve();
+    }
+    setSeen(row.updated_at);                                // already in sync → just record the marker
+    return Promise.resolve();
   }
 
   /* ---------------- diagnostics (only active with ?debug in the URL) ---------------- */
@@ -211,20 +238,18 @@
     }
     el.textContent = text;
   }
-  function diag(label, cloud) {
+  function diag(label, row) {
     if (!DEBUG) return;
     var g = gather(), k = KEYS[0];
     var localLen = (g[k] || "").length;
-    var cloudLen = (cloud && cloud[k]) ? String(cloud[k]).length : 0;
-    var lTs = getTs(g);
-    var cTs = getTs(cloud);
+    var cloudLen = (row && row.data && row.data[k]) ? String(row.data[k]).length : 0;
     dbgShow(
       "SYNC DEBUG · " + label + "\n" +
       "user: " + (currentUser ? currentUser.email : "—") + " · ready: " + ready + " · dirty: " + dirty + "\n" +
-      "cloud row: " + (cloud ? "EXISTS" : "NONE") + " · cloud data length: " + cloudLen + " · cloud ts: " + cTs + "\n" +
-      "phone/here data length: " + localLen + " · local ts: " + lTs + "\n" +
-      "NEWER: " + (cTs > lTs ? "CLOUD" : (lTs > cTs ? "LOCAL" : "EQUAL")) + "\n" +
-      "IN SYNC: " + (canon(cloud || {}) === canon(g) ? "YES ✓" : "NO — DIFFERS ✗") + "\n" +
+      "cloud row: " + (row ? "EXISTS" : "NONE") + " · cloud len: " + cloudLen + " · cloud updated_at: " + (row ? row.updated_at : "—") + "\n" +
+      "here len: " + localLen + " · seen: " + getSeen() + "\n" +
+      "cloud moved since seen: " + (row ? (row.updated_at !== getSeen()) : "n/a") + "\n" +
+      "IN SYNC: " + (row && canon(row.data) === canon(g) ? "YES ✓" : "NO — DIFFERS ✗") + "\n" +
       new Date().toLocaleTimeString()
     );
   }
@@ -236,26 +261,12 @@
     location.reload();   // fallback if the app didn't expose the hook
   }
 
-  // Pull the latest cloud state and keep the newer side.
-  // Called on login and on every "returned to the app" signal.
+  // Pull the latest cloud state and reconcile. Called on returning to the app (focus / foreground).
   function syncFromCloud() {
     if (!currentUser) return Promise.resolve();
-    return pull().then(function (cloud) {
-      diag("returned to app", cloud);
-      var local = gather();
-      if (!cloud || canon(cloud) === canon(local)) {
-        /* in sync → nothing to do */
-      } else if (dirty && getTs(local) >= getTs(cloud)) {
-        forcePush();                     // our unpushed edits are at least as new → keep them
-        diag("local newer — pushed", cloud);
-      } else if (getTs(local) > getTs(cloud)) {
-        forcePush();                     // local strictly newer → push
-        diag("local newer — pushed", cloud);
-      } else {
-        applyCloud(cloud);               // cloud newer, or timestamp tie with different content → cloud wins
-        rerender();
-        diag("resync applied (cloud won)", cloud);
-      }
+    return pull().then(function (row) {
+      diag("returned to app", row);
+      return reconcile(row);
     }).catch(function (e) { dbgShow("resync pull FAILED: " + (e && e.message)); });
   }
 
@@ -264,26 +275,14 @@
     loggedInOnce = true;
     currentUser = user;
     showLoading();
-    pull().then(function (cloud) {
-      var local = gather();
-      if (!cloud) {
-        push();                          // first sign-in ever → seed the cloud from whatever's here
-      } else if (canon(cloud) === canon(local)) {
-        /* already identical → nothing to do */
-      } else if (getTs(local) > getTs(cloud)) {
-        push();                          // this device was genuinely edited more recently → push it up
-      } else {
-        // Cloud is newer, OR timestamps tie but content differs (e.g. legacy data with no
-        // timestamp yet): the cloud is the shared source of truth, so converge to it.
-        applyCloud(cloud);
-        rerender();
-      }
-
-      subscribeRealtime();
-      ready = true;
-      hideOverlay();
-      showBadge(user.email);
-      diag("after login", cloud);
+    pull().then(function (row) {
+      return reconcile(row).then(function () {
+        subscribeRealtime();
+        ready = true;
+        hideOverlay();
+        showBadge(user.email);
+        diag("after login", row);
+      });
     }).catch(function (e) {
       ready = true; hideOverlay(); showBadge(user.email);
       dbgShow("login pull FAILED: " + (e && e.message));
@@ -298,13 +297,9 @@
         .on("postgres_changes",
           { event: "*", schema: "public", table: "user_data", filter: "app=eq." + cfg.app },
           function (payload) {
-            var cloud = payload["new"] && payload["new"].data;
-            if (!cloud) return;
-            var local = gather();
-            if (getTs(cloud) > getTs(local)) {
-              applyCloud(cloud);
-              rerender();
-            }
+            var n = payload["new"];
+            if (!n || !n.data) return;
+            reconcile({ data: n.data, updated_at: n.updated_at });   // same server-clock logic
           })
         .subscribe();
     } catch (e) { /* realtime is best-effort; the foreground/focus re-pull covers gaps */ }
@@ -338,8 +333,18 @@
   }
 
   function logout() {
-    clearLocal();                     // don't leave one customer's data for the next
-    sb.auth.signOut().then(function () { location.reload(); });
+    // Flush any unsaved edit to the cloud and WAIT for it before wiping local + signing out —
+    // otherwise a trade added seconds before logout (still in the 0.8s debounce) is lost forever.
+    var finish = function () {
+      clearLocal();                   // don't leave one customer's data for the next
+      sb.auth.signOut().then(function () { location.reload(); });
+    };
+    if (dirty || pushTimer) {
+      if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
+      push().then(finish, finish);    // proceed whether the flush succeeds or fails
+    } else {
+      finish();
+    }
   }
 
   /* ---------------- overlay / DOM ---------------- */
