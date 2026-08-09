@@ -286,7 +286,7 @@
         <div class="field"><label for="f-entry">Entry price</label><input type="number" id="f-entry" step="any" min="0" placeholder="36.42" required></div>
         <div class="field"><label for="f-exit">Exit price <span style="text-transform:none;color:var(--ink-faint)">(blank = open)</span></label><input type="number" id="f-exit" step="any" min="0" placeholder="41.10"></div>
         <div class="field"><label for="f-close">Date closed</label><input type="date" id="f-close"></div>
-        <div class="field"><label for="f-fees">Fees</label><input type="number" id="f-fees" step="any" min="0" placeholder="0"></div>
+        <div class="field"><label for="f-exitqty">Exit qty <span style="text-transform:none;color:var(--ink-faint)">(blank = all)</span></label><input type="number" id="f-exitqty" step="any" min="0" placeholder="e.g. 3000"></div>
         <div class="field wide"><label for="f-strategy">Strategy / setup</label><input type="text" id="f-strategy" placeholder="Momentum breakout"></div>
         <div class="field wide"><label for="f-notes">Notes</label><input type="text" id="f-notes" placeholder="Trailed the 100-SMA"></div>
         <div class="form-actions">
@@ -331,11 +331,11 @@
 
   <section class="card">
     <details class="addform" id="pnlDetails">
-      <summary>Log realized P&amp;L (period total — no entry/exit)</summary>
+      <summary>Log a past trade — P&amp;L only (no entry/exit needed)</summary>
       <form class="form-grid" id="pnlForm">
         <div class="field"><label for="p-date">Date</label><input type="date" id="p-date" required></div>
-        <div class="field wide"><label for="p-label">Label</label><input type="text" id="p-label" placeholder="e.g. Jun 2026"></div>
-        <div class="field"><label for="p-amount">Realized P&amp;L ($)</label><input type="number" id="p-amount" step="any" placeholder="-5692" required></div>
+        <div class="field wide"><label for="p-label">Symbol / ticker</label><input type="text" id="p-label" placeholder="e.g. ALLO" autocapitalize="characters" spellcheck="false"></div>
+        <div class="field"><label for="p-amount">Realized P&amp;L ($)</label><input type="number" id="p-amount" step="any" placeholder="e.g. 468 or -120" required></div>
         <div class="field wide"><label for="p-notes">Notes</label><input type="text" id="p-notes" placeholder="e.g. monthly total"></div>
         <div class="form-actions">
           <button type="submit" class="btn primary">Add P&amp;L</button>
@@ -859,15 +859,24 @@
   document.getElementById("tradeForm").addEventListener("submit", function (e) {
     e.preventDefault();
     var g = function (id) { return document.getElementById(id).value; };
-    var t = {
-      id: uid(), openDate: g("f-open"), symbol: g("f-symbol").trim().toUpperCase(),
-      direction: g("f-dir"), qty: parseFloat(g("f-qty")), entry: parseFloat(g("f-entry")),
-      exit: g("f-exit") === "" ? "" : parseFloat(g("f-exit")),
-      closeDate: g("f-close"), fees: parseFloat(g("f-fees")) || 0,
-      strategy: g("f-strategy").trim(), notes: g("f-notes").trim()
-    };
-    if (!t.openDate || !t.symbol || !(t.qty > 0) || !(t.entry >= 0)) return;
-    trades.push(t); persist(); render();
+    var openDate = g("f-open"), sym = g("f-symbol").trim().toUpperCase();
+    var qty = parseFloat(g("f-qty")), entry = parseFloat(g("f-entry"));
+    if (!openDate || !sym || !(qty > 0) || !(entry >= 0)) return;
+    var dir = g("f-dir"), strategy = g("f-strategy").trim(), notes = g("f-notes").trim();
+    var exit = g("f-exit") === "" ? "" : parseFloat(g("f-exit"));
+    var closeDate = g("f-close");
+    var closing = exit !== "" && closeDate !== "";           // a real close needs price + date
+    var exitQty = g("f-exitqty") === "" ? qty : parseFloat(g("f-exitqty"));
+    var base = { symbol: sym, direction: dir, entry: entry, fees: 0, strategy: strategy, notes: notes };
+
+    if (closing && exitQty > 0 && exitQty < qty) {
+      // Partial close: realize P&L on the shares sold, keep the rest as an open position.
+      trades.push(Object.assign({ id: uid(), openDate: openDate, qty: exitQty, exit: exit, closeDate: closeDate }, base));
+      trades.push(Object.assign({ id: uid(), openDate: openDate, qty: qty - exitQty, exit: "", closeDate: "" }, base));
+    } else {
+      trades.push(Object.assign({ id: uid(), openDate: openDate, qty: qty, exit: exit, closeDate: closeDate }, base));
+    }
+    persist(); render();
     this.reset();
   });
 
@@ -879,7 +888,7 @@
     if (!date || isNaN(amount)) return;
     trades.push({
       id: uid(), openDate: date, closeDate: date,
-      symbol: g("p-label").trim() || "Realized P&L", direction: "long",
+      symbol: g("p-label").trim().toUpperCase() || "Realized P&L", direction: "long",
       qty: "", entry: "", exit: "", fees: 0, manualPnl: amount,
       strategy: "", notes: g("p-notes").trim()
     });
