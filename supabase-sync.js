@@ -5,6 +5,15 @@
 
    Each app sets, BEFORE loading this file:
      window.SYNC_CONFIG = { app: 'pnl'|'budget', name: 'P&L', keys: [ ...localStorage keys... ] };
+
+   FIXES (2026-08-09):
+   - Force immediate push on visibility hidden / pagehide (iOS kills timers).
+   - Conflict resolution by a PERSISTED last-edited timestamp: the side that was
+     actually edited more recently wins. The timestamp is written only on a real
+     user edit and read back on compare — never regenerated — so an empty device
+     can never look "newer" and overwrite real cloud data.
+   - A `dirty` flag means we only ever push when this device has genuine unpushed
+     edits, so backgrounding a stale tab can't clobber a newer device.
    =========================================================================== */
 (function () {
   "use strict";
@@ -14,6 +23,7 @@
 
   var cfg  = window.SYNC_CONFIG || { app: "app", name: "App", keys: [] };
   var KEYS = cfg.keys || [];
+  var MTIME_KEY = "__sync_mtime_" + cfg.app;   // persisted "last user edit" time (NOT an app data key)
 
   var sb = null;
   var currentUser = null;
@@ -21,20 +31,29 @@
   var ready = false;          // true once the initial pull is done (gates pushes)
   var applyingRemote = false; // true while writing cloud data into localStorage
   var pushTimer = null;
-  var loggedInOnce = false;      // auth can fire the login twice — run it only once
+  var loggedInOnce = false;   // auth can fire the login twice — run it only once
   var realtimeSubscribed = false;
+  var dirty = false;          // true when this device has user edits not yet confirmed in the cloud
 
   /* ---- 1. Install the localStorage hook SYNCHRONOUSLY (before the app runs) ---- */
   var origSet = window.localStorage.setItem.bind(window.localStorage);
   var origRemove = window.localStorage.removeItem.bind(window.localStorage);
   window.localStorage.setItem = function (k, v) {
     origSet(k, v);
-    if (!applyingRemote && KEYS.indexOf(k) >= 0) schedulePush();
+    if (!applyingRemote && KEYS.indexOf(k) >= 0) onLocalEdit();
   };
   window.localStorage.removeItem = function (k) {
     origRemove(k);
-    if (!applyingRemote && KEYS.indexOf(k) >= 0) schedulePush();
+    if (!applyingRemote && KEYS.indexOf(k) >= 0) onLocalEdit();
   };
+  // A genuine user edit (only counts once the app is live — boot-time seeding is ignored,
+  // otherwise an empty device would stamp "now" and overwrite the cloud).
+  function onLocalEdit() {
+    if (!ready) return;
+    dirty = true;
+    origSet(MTIME_KEY, String(Date.now()));  // bump the persisted last-edited time
+    schedulePush();
+  }
 
   /* ---- 2. Cover the screen immediately so app data never flashes pre-login ---- */
   injectStyles();
@@ -73,34 +92,63 @@
       if (session && !currentUser) onLogin(session.user);
       else if (!session && currentUser) { currentUser = null; location.reload(); }
     });
-    // Re-sync on every way of returning to the app. iOS suspends realtime in the background and
-    // often restores the page from cache (bfcache) without re-running scripts, so poll all three:
+
+    // ---- Critical for iOS: force push the moment the page is about to leave ----
     document.addEventListener("visibilitychange", function () {
-      if (document.visibilityState === "visible" && ready) syncFromCloud();
+      if (document.visibilityState === "hidden") {
+        forcePush();                       // cancel debounce + push NOW (only if dirty)
+      } else if (document.visibilityState === "visible" && ready) {
+        syncFromCloud();
+      }
     });
-    window.addEventListener("pageshow", function (e) { if (e.persisted && ready) syncFromCloud(); });
-    window.addEventListener("focus", function () { if (ready) syncFromCloud(); });
+    window.addEventListener("pagehide", function () {
+      forcePush();
+    });
+    // Also re-sync when returning from bfcache or focus
+    window.addEventListener("pageshow", function (e) {
+      if (e.persisted && ready) syncFromCloud();
+    });
+    window.addEventListener("focus", function () {
+      if (ready) syncFromCloud();
+    });
   }
 
   /* ---------------- sync core ---------------- */
   function gather() {
     var o = {};
-    KEYS.forEach(function (k) { var v = origGet(k); if (v !== null) o[k] = v; });
+    KEYS.forEach(function (k) {
+      var v = origGet(k);
+      if (v !== null) o[k] = v;
+    });
+    // Persisted last-edited time — READ, never regenerated. This is the only source of
+    // truth for "which side is newer". 0 means "never edited on this device".
+    o.__ts = getStoredMtime();
     return o;
   }
   function origGet(k) { return window.localStorage.getItem(k); }
-  function stateString() { return JSON.stringify(gather()); }
+  function getStoredMtime() { var n = Number(origGet(MTIME_KEY)); return isNaN(n) ? 0 : n; }
+
+  function getTs(obj) {
+    if (!obj || obj.__ts == null) return 0;
+    var n = Number(obj.__ts);
+    return isNaN(n) ? 0 : n;
+  }
 
   function applyCloud(obj) {
     applyingRemote = true;
     KEYS.forEach(function (k) {
       if (obj && Object.prototype.hasOwnProperty.call(obj, k)) origSet(k, obj[k]);
     });
+    // Adopt the cloud's edit time so this device now matches it — no false "I'm newer" next compare.
+    origSet(MTIME_KEY, String(getTs(obj)));
+    dirty = false;              // we're now in sync with the cloud; nothing local to push
     applyingRemote = false;
   }
   function clearLocal() {
     applyingRemote = true;
     KEYS.forEach(function (k) { origRemove(k); });
+    origRemove(MTIME_KEY);      // don't leave one customer's edit-time for the next person
+    dirty = false;
     applyingRemote = false;
   }
 
@@ -113,12 +161,18 @@
     return sb.from("user_data").upsert(
       { user_id: currentUser.id, app: cfg.app, data: gather() },
       { onConflict: "user_id,app" }
-    );
+    ).then(function (r) {
+      if (r && !r.error) dirty = false;   // confirmed in the cloud
+      return r;
+    });
   }
+
+  // Normal editing path: debounce so rapid keystrokes don't spam the DB
   function schedulePush() {
-    if (!ready) return;
+    if (!ready || !dirty) return;
     if (pushTimer) clearTimeout(pushTimer);
     pushTimer = setTimeout(function () {
+      pushTimer = null;
       push().then(function (r) {
         if (DEBUG) dbgShow("PUSHED — status " + (r && r.status) + (r && r.error ? " ERROR " + JSON.stringify(r.error) : " OK") +
           " · sent length: " + ((gather()[KEYS[0]] || "").length) + " · " + new Date().toLocaleTimeString());
@@ -126,7 +180,18 @@
     }, 800);
   }
 
-  // Order-independent fingerprint of the app state (Postgres reorders JSON keys).
+  // Used on hide / pagehide — cancel any pending debounce and push immediately,
+  // but ONLY if this device actually has unpushed edits (never clobber a newer device).
+  function forcePush() {
+    if (!ready || !currentUser || !dirty) return;
+    if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
+    push().then(function (r) {
+      if (DEBUG) dbgShow("FORCE-PUSH — status " + (r && r.status) + (r && r.error ? " ERROR " + JSON.stringify(r.error) : " OK") +
+        " · " + new Date().toLocaleTimeString());
+    });
+  }
+
+  // Order-independent fingerprint of the app state (ignores __ts — it only looks at KEYS).
   function canon(o) {
     o = o || {};
     return JSON.stringify(KEYS.map(function (k) { return (k in o) ? o[k] : null; }));
@@ -151,30 +216,47 @@
     var g = gather(), k = KEYS[0];
     var localLen = (g[k] || "").length;
     var cloudLen = (cloud && cloud[k]) ? String(cloud[k]).length : 0;
+    var lTs = getTs(g);
+    var cTs = getTs(cloud);
     dbgShow(
       "SYNC DEBUG · " + label + "\n" +
-      "user: " + (currentUser ? currentUser.email : "—") + " · ready: " + ready + "\n" +
-      "cloud row: " + (cloud ? "EXISTS" : "NONE") + " · cloud data length: " + cloudLen + "\n" +
-      "phone/here data length: " + localLen + "\n" +
+      "user: " + (currentUser ? currentUser.email : "—") + " · ready: " + ready + " · dirty: " + dirty + "\n" +
+      "cloud row: " + (cloud ? "EXISTS" : "NONE") + " · cloud data length: " + cloudLen + " · cloud ts: " + cTs + "\n" +
+      "phone/here data length: " + localLen + " · local ts: " + lTs + "\n" +
+      "NEWER: " + (cTs > lTs ? "CLOUD" : (lTs > cTs ? "LOCAL" : "EQUAL")) + "\n" +
       "IN SYNC: " + (canon(cloud || {}) === canon(g) ? "YES ✓" : "NO — DIFFERS ✗") + "\n" +
       new Date().toLocaleTimeString()
     );
   }
 
-  // Re-render the app in place with whatever is now in storage. No page reload — reloads are
-  // unreliable on iOS Safari (it restores cached pages without re-running scripts).
+  // Re-render the app in place with whatever is now in storage. No page reload —
+  // reloads are unreliable on iOS Safari (it restores cached pages without re-running scripts).
   function rerender() {
     if (typeof window.__resyncApply === "function") { try { window.__resyncApply(); return; } catch (e) {} }
     location.reload();   // fallback if the app didn't expose the hook
   }
 
-  // Pull the latest cloud state; if it differs from what's on screen, apply it and re-render.
+  // Pull the latest cloud state and keep the newer side.
   // Called on login and on every "returned to the app" signal.
   function syncFromCloud() {
     if (!currentUser) return Promise.resolve();
     return pull().then(function (cloud) {
       diag("returned to app", cloud);
-      if (cloud && canon(cloud) !== canon(gather())) { applyCloud(cloud); rerender(); diag("resync applied", cloud); }
+      var local = gather();
+      var cTs = getTs(cloud);
+      var lTs = getTs(local);
+
+      if (cloud && cTs > lTs) {
+        // Cloud is strictly newer → apply it
+        applyCloud(cloud);
+        rerender();
+        diag("resync applied (cloud newer)", cloud);
+      } else if (dirty && lTs >= cTs) {
+        // We have unpushed local edits that are at least as new → push them
+        forcePush();
+        diag("local newer — pushed", cloud);
+      }
+      // otherwise in sync → nothing to do
     }).catch(function (e) { dbgShow("resync pull FAILED: " + (e && e.message)); });
   }
 
@@ -184,9 +266,24 @@
     currentUser = user;
     showLoading();
     pull().then(function (cloud) {
-      if (cloud && canon(cloud) !== canon(gather())) { applyCloud(cloud); rerender(); }
-      else if (!cloud) push();        // first sign-in: seed the cloud from this device
-      subscribeRealtime();            // best-effort; never throws
+      var local = gather();
+      var cTs = getTs(cloud);
+      var lTs = getTs(local);
+
+      if (cloud && cTs > lTs) {
+        // Cloud is newer → take it (this is the phone's normal case: empty/old local, real cloud)
+        applyCloud(cloud);
+        rerender();
+      } else if (!cloud) {
+        // First sign-in ever → seed the cloud from whatever's here
+        push();
+      } else if (lTs > cTs) {
+        // This device was genuinely edited more recently → push it up
+        push();
+      }
+      // equal → already in sync, leave as-is
+
+      subscribeRealtime();
       ready = true;
       hideOverlay();
       showBadge(user.email);
@@ -206,7 +303,12 @@
           { event: "*", schema: "public", table: "user_data", filter: "app=eq." + cfg.app },
           function (payload) {
             var cloud = payload["new"] && payload["new"].data;
-            if (cloud && canon(cloud) !== canon(gather())) { applyCloud(cloud); rerender(); }
+            if (!cloud) return;
+            var local = gather();
+            if (getTs(cloud) > getTs(local)) {
+              applyCloud(cloud);
+              rerender();
+            }
           })
         .subscribe();
     } catch (e) { /* realtime is best-effort; the foreground/focus re-pull covers gaps */ }
