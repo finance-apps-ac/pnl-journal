@@ -166,11 +166,11 @@
   .addform summary::before { content: "＋ "; font-weight: 700; }
   .addform[open] summary::before { content: "－ "; }
   .form-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }
-  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
   .field.wide { grid-column: span 2; }
   .field label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-soft); }
   .field input, .field select { background: var(--surface-2); border: 1px solid var(--border);
-          border-radius: 8px; padding: 8px 10px; font-size: 13.5px; width: 100%; }
+          border-radius: 8px; padding: 8px 10px; font-size: 13.5px; width: 100%; min-width: 0; max-width: 100%; }
   .field input:focus, .field select:focus { border-color: var(--accent); outline: none; }
   .field input::placeholder { color: var(--ink-faint); }
   .form-actions { grid-column: 1 / -1; display: flex; gap: 10px; }
@@ -272,34 +272,6 @@
   </section>
 
   <section class="card">
-    <div class="card-head">
-      <h2>Current holdings</h2>
-      <span class="card-sub" id="holdingsTotal"></span>
-    </div>
-    <div class="table-wrap">
-      <table id="holdingsTable">
-        <thead><tr>
-          <th class="l">Symbol</th><th>Shares</th><th>Value</th><th>Avg cost</th><th>Cost basis</th><th>Unreal.&nbsp;P&amp;L</th><th></th>
-        </tr></thead>
-        <tbody id="holdingsBody"></tbody>
-      </table>
-    </div>
-    <details class="addform" id="holdingDetails" style="margin-top:14px;">
-      <summary>Add a holding</summary>
-      <form class="form-grid" id="holdingForm">
-        <div class="field"><label for="h-symbol">Symbol</label><input type="text" id="h-symbol" placeholder="IONQ" required></div>
-        <div class="field"><label for="h-shares">Shares</label><input type="number" id="h-shares" step="any" min="0" placeholder="100" required></div>
-        <div class="field"><label for="h-cost">Avg cost ($/sh)</label><input type="number" id="h-cost" step="any" min="0" placeholder="optional"></div>
-        <div class="field"><label for="h-value">Current value ($)</label><input type="number" id="h-value" step="any" min="0" placeholder="1500"></div>
-        <div class="form-actions">
-          <button type="submit" class="btn primary">Add holding</button>
-          <button type="reset" class="btn">Clear</button>
-        </div>
-      </form>
-    </details>
-  </section>
-
-  <section class="card">
     <details class="addform" id="addDetails" open>
       <summary>Add a trade</summary>
       <form class="form-grid" id="tradeForm">
@@ -316,6 +288,38 @@
         <div class="field wide"><label for="f-notes">Notes</label><input type="text" id="f-notes" placeholder="Trailed the 100-SMA"></div>
         <div class="form-actions">
           <button type="submit" class="btn primary">Add trade</button>
+          <button type="reset" class="btn">Clear</button>
+        </div>
+      </form>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Current holdings</h2>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <span class="card-sub" id="holdingsTotal"></span>
+        <button type="button" class="btn" id="refreshPricesBtn" title="Update each holding's value from the live market price">↻ Live prices</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="holdingsTable">
+        <thead><tr>
+          <th class="l">Symbol</th><th>Shares</th><th>Value</th><th>Avg cost</th><th>Cost basis</th><th>Unreal.&nbsp;P&amp;L</th><th></th>
+        </tr></thead>
+        <tbody id="holdingsBody"></tbody>
+      </table>
+    </div>
+    <div id="priceNote" style="margin-top:8px; font-size:12px; opacity:.6;"></div>
+    <details class="addform" id="holdingDetails" style="margin-top:14px;">
+      <summary>Add a holding</summary>
+      <form class="form-grid" id="holdingForm">
+        <div class="field"><label for="h-symbol">Symbol</label><input type="text" id="h-symbol" placeholder="IONQ" required></div>
+        <div class="field"><label for="h-shares">Shares</label><input type="number" id="h-shares" step="any" min="0" placeholder="100" required></div>
+        <div class="field"><label for="h-cost">Avg cost ($/sh)</label><input type="number" id="h-cost" step="any" min="0" placeholder="optional"></div>
+        <div class="field"><label for="h-value">Current value ($)</label><input type="number" id="h-value" step="any" min="0" placeholder="1500"></div>
+        <div class="form-actions">
+          <button type="submit" class="btn primary">Add holding</button>
           <button type="reset" class="btn">Clear</button>
         </div>
       </form>
@@ -393,6 +397,7 @@
   /* ===== DEMO BUILD — example data in memory only; never touches real app storage ===== */
   var __demo = {
     "ledger.trades.v1": JSON.stringify([
+      {id:"t15",openDate:"2026-08-01",symbol:"PLTR",direction:"long",qty:50,entry:28,exit:"",closeDate:"",fees:0,mktValue:1720,tickers:["PLTR"],strategy:"Momentum",notes:"current position"},
       {id:"t1",openDate:"2026-01-06",closeDate:"2026-01-14",symbol:"NVDA",direction:"long",qty:20,entry:128.5,exit:141.2,fees:0,tickers:["NVDA"],strategy:"Breakout",notes:""},
       {id:"t2",openDate:"2026-01-20",closeDate:"2026-01-28",symbol:"AAPL",direction:"long",qty:40,entry:189,exit:195.4,fees:0,tickers:["AAPL"],strategy:"Swing",notes:""},
       {id:"t3",openDate:"2026-02-03",closeDate:"2026-02-10",symbol:"MSFT",direction:"long",qty:12,entry:402,exit:418.5,fees:0,tickers:["MSFT"],strategy:"Trend",notes:""},
@@ -590,29 +595,49 @@
       '</svg>';
   }
 
+  // Open trades (entry logged, no exit yet) behave as current positions.
+  function openPositions() {
+    return trades.filter(function (t) { return compute(t).open; });
+  }
+
   function renderHoldings() {
     var totVal = 0, totUnreal = 0, hasUnreal = false, body = "";
-    holdings.forEach(function (x) {
-      var val = Number(x.value) || 0; totVal += val;
+    // Current positions = manually-added holdings + open trades.
+    var positions = holdings.map(function (h) {
+      return { id: h.id, kind: "h", symbol: h.symbol, shares: h.shares, value: h.value, cost: h.cost };
+    }).concat(openPositions().map(function (t) {
+      // Until a live price is fetched, show an open position at its cost (value = cost basis).
+      var basis = (t.entry !== "" && t.entry != null && t.qty !== "" && t.qty != null)
+        ? Number(t.entry) * Number(t.qty) : "";
+      return { id: t.id, kind: "t", symbol: t.symbol, shares: t.qty,
+               value: (t.mktValue == null ? basis : t.mktValue), cost: t.entry };
+    }));
+
+    positions.forEach(function (x) {
+      var hasVal = !(x.value === "" || x.value == null);
+      var val = hasVal ? Number(x.value) : 0; totVal += val;
       var costNum = (x.cost === "" || x.cost == null) ? null : Number(x.cost);
       var basis = costNum != null ? costNum * Number(x.shares) : null;
-      var unreal = basis != null ? val - basis : null;
+      var unreal = (basis != null && hasVal) ? val - basis : null;
       if (unreal != null) { totUnreal += unreal; hasUnreal = true; }
+      var tag = x.kind === "t"
+        ? ' <span style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);border:1px solid var(--border);border-radius:5px;padding:1px 5px;margin-left:6px;vertical-align:middle;">open</span>'
+        : '';
       body += '<tr>' +
-        '<td class="l sym">' + esc(x.symbol) + '</td>' +
-        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-hshares="' + x.id +
+        '<td class="l sym">' + esc(x.symbol) + tag + '</td>' +
+        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pshares="' + x.id +
           '" value="' + (x.shares === "" || x.shares == null ? "" : esc(x.shares)) + '" placeholder="—"></td>' +
-        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-hval="' + x.id +
+        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pval="' + x.id +
           '" value="' + (x.value === "" || x.value == null ? "" : esc(x.value)) + '" placeholder="—"></td>' +
-        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-hcost="' + x.id +
+        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pcost="' + x.id +
           '" value="' + (x.cost === "" || x.cost == null ? "" : esc(x.cost)) + '" placeholder="—"></td>' +
         '<td class="num">' + (basis != null ? money(basis) : "—") + '</td>' +
         '<td class="num ' + (unreal == null ? "" : cls(unreal)) + '">' + (unreal == null ? "—" : signed(unreal)) + '</td>' +
-        '<td><button class="del" title="Remove" data-hid="' + x.id + '">✕</button></td>' +
+        '<td><button class="del" title="Remove" data-pid="' + x.id + '">✕</button></td>' +
       '</tr>';
     });
-    if (!holdings.length) {
-      body = '<tr><td colspan="7" class="empty">No holdings yet — add one below.</td></tr>';
+    if (!positions.length) {
+      body = '<tr><td colspan="7" class="empty">No holdings yet — add a trade (leave Exit blank) or a holding below.</td></tr>';
     } else {
       body += '<tr class="total-row"><td class="l">Total</td><td></td>' +
         '<td class="num">' + money(totVal) + '</td>' +
@@ -622,28 +647,43 @@
     }
     document.getElementById("holdingsBody").innerHTML = body;
     document.getElementById("holdingsTotal").textContent = money(totVal) + " market value";
-    Array.prototype.forEach.call(document.querySelectorAll("[data-hcost]"), function (inp) {
+
+    // Edits map back to the right source: a manual holding, or the underlying open trade.
+    function updatePos(id, field, val) {
+      var h = holdings.filter(function (z) { return z.id === id; })[0];
+      if (h) { h[field] = val; persistH(); render(); return; }
+      var t = trades.filter(function (z) { return z.id === id; })[0];
+      if (t) {
+        if (field === "shares") t.qty = val;
+        else if (field === "value") t.mktValue = val;
+        else if (field === "cost") t.entry = val;
+        persist(); render();
+      }
+    }
+    Array.prototype.forEach.call(document.querySelectorAll("[data-pshares]"), function (inp) {
       inp.addEventListener("change", function () {
-        var hd = holdings.filter(function (z) { return z.id === inp.getAttribute("data-hcost"); })[0];
-        if (hd) { hd.cost = inp.value === "" ? "" : parseFloat(inp.value); persistH(); renderHoldings(); }
+        updatePos(inp.getAttribute("data-pshares"), "shares", inp.value === "" ? "" : parseFloat(inp.value));
       });
     });
-    Array.prototype.forEach.call(document.querySelectorAll("[data-hval]"), function (inp) {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-pval]"), function (inp) {
       inp.addEventListener("change", function () {
-        var hd = holdings.filter(function (z) { return z.id === inp.getAttribute("data-hval"); })[0];
-        if (hd) { hd.value = inp.value === "" ? "" : parseFloat(inp.value); persistH(); renderHoldings(); }
+        updatePos(inp.getAttribute("data-pval"), "value", inp.value === "" ? "" : parseFloat(inp.value));
       });
     });
-    Array.prototype.forEach.call(document.querySelectorAll("[data-hshares]"), function (inp) {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-pcost]"), function (inp) {
       inp.addEventListener("change", function () {
-        var hd = holdings.filter(function (z) { return z.id === inp.getAttribute("data-hshares"); })[0];
-        if (hd) { hd.shares = inp.value === "" ? "" : parseFloat(inp.value); persistH(); renderHoldings(); }
+        updatePos(inp.getAttribute("data-pcost"), "cost", inp.value === "" ? "" : parseFloat(inp.value));
       });
     });
-    Array.prototype.forEach.call(document.querySelectorAll("[data-hid]"), function (b) {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-pid]"), function (b) {
       b.addEventListener("click", function () {
-        holdings = holdings.filter(function (z) { return z.id !== b.getAttribute("data-hid"); });
-        persistH(); renderHoldings();
+        var id = b.getAttribute("data-pid");
+        if (holdings.some(function (z) { return z.id === id; })) {
+          holdings = holdings.filter(function (z) { return z.id !== id; }); persistH();
+        } else {
+          trades = trades.filter(function (z) { return z.id !== id; }); persist();
+        }
+        render();
       });
     });
   }
@@ -799,6 +839,7 @@
     var list = trades.slice().sort(function (a, b) {
       return new Date(b.openDate) - new Date(a.openDate);
     }).filter(function (t) {
+      if (compute(t).open) return false;   // open positions live in Current Holdings, not here
       if (yr === "all") return true;
       var d = t.closeDate || t.openDate; return d && d.slice(0, 4) === yr;
     });
@@ -809,7 +850,7 @@
       body += '<tr>' +
         '<td class="l">' + fmtDay(t.openDate) + '</td>' +
         '<td class="l"><input class="tkr-input" type="text" data-tkr="' + t.id +
-          '" value="' + esc(tickersStr(t)) + '" placeholder="＋ tickers" autocapitalize="characters" spellcheck="false"></td>' +
+          '" value="' + esc(tickersStr(t) || t.symbol || "") + '" placeholder="＋ tickers" autocapitalize="characters" spellcheck="false"></td>' +
         '<td class="num">' + (c.open
               ? '<span class="pnl-pill flat">—</span>'
               : '<span class="pnl-pill ' + cls(c.pnl) + '">' + signed(c.pnl) + '</span>') + '</td>' +
@@ -818,7 +859,7 @@
     });
     if (!list.length) body = '<tr><td colspan="4" class="empty">No trades' + (yr === "all" ? "" : " in " + yr) + ' yet.</td></tr>';
     document.getElementById("tradesBody").innerHTML = body;
-    document.getElementById("tradeCount").textContent = trades.length + " total";
+    document.getElementById("tradeCount").textContent = list.length + " total";
     Array.prototype.forEach.call(document.querySelectorAll(".del"), function (b) {
       b.addEventListener("click", function () { removeTrade(b.getAttribute("data-id")); });
     });
@@ -892,6 +933,45 @@
                     value: parseFloat(g("h-value")) || 0 });
     persistH(); renderHoldings(); this.reset();
   });
+
+  // ---------- live prices (updates each holding's Value = live price × shares) ----------
+  function setPriceNote(t) { var n = document.getElementById("priceNote"); if (n) n.textContent = t; }
+  function refreshPrices() {
+    var btn = document.getElementById("refreshPricesBtn");
+    if (!window.SyncPrices || !window.SyncPrices.getQuotes) { setPriceNote("Log in to fetch live prices."); return; }
+    var opens = openPositions();
+    var syms = [];
+    holdings.forEach(function (h) { if (h.symbol) syms.push(String(h.symbol).toUpperCase()); });
+    opens.forEach(function (t) { if (t.symbol) syms.push(String(t.symbol).toUpperCase()); });
+    if (!syms.length) { setPriceNote("Add a position first."); return; }
+    if (btn) { btn.disabled = true; btn.textContent = "↻ Updating…"; }
+    setPriceNote("Fetching live prices…");
+    window.SyncPrices.getQuotes(syms).then(function (prices) {
+      var updated = 0, missing = [];
+      holdings.forEach(function (h) {
+        var p = prices[String(h.symbol).toUpperCase()];
+        if (p != null && !isNaN(p) && h.shares !== "" && h.shares != null) {
+          h.value = Math.round(p * Number(h.shares) * 100) / 100; updated++;
+        } else if (p == null) { missing.push(h.symbol); }
+      });
+      opens.forEach(function (t) {
+        var p = prices[String(t.symbol).toUpperCase()];
+        if (p != null && !isNaN(p) && t.qty !== "" && t.qty != null) {
+          t.mktValue = Math.round(p * Number(t.qty) * 100) / 100; updated++;
+        } else if (p == null) { missing.push(t.symbol); }
+      });
+      persistH(); persist(); render();
+      var now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      var msg = updated + (updated === 1 ? " position" : " positions") + " updated · " + now;
+      if (missing.length) msg += " · no price for " + missing.filter(function (v, i, a) { return a.indexOf(v) === i; }).join(", ");
+      setPriceNote(msg);
+    }).catch(function () {
+      setPriceNote("Couldn't fetch prices — try again in a moment.");
+    }).then(function () {
+      if (btn) { btn.disabled = false; btn.textContent = "↻ Live prices"; }
+    });
+  }
+  document.getElementById("refreshPricesBtn").addEventListener("click", refreshPrices);
 
   // ---------- CSV ----------
   var FIELDS = ["openDate","symbol","direction","qty","entry","exit","closeDate","fees","manualPnl","strategy","notes"];
