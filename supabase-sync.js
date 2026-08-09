@@ -243,20 +243,19 @@
     return pull().then(function (cloud) {
       diag("returned to app", cloud);
       var local = gather();
-      var cTs = getTs(cloud);
-      var lTs = getTs(local);
-
-      if (cloud && cTs > lTs) {
-        // Cloud is strictly newer → apply it
-        applyCloud(cloud);
-        rerender();
-        diag("resync applied (cloud newer)", cloud);
-      } else if (dirty && lTs >= cTs) {
-        // We have unpushed local edits that are at least as new → push them
-        forcePush();
+      if (!cloud || canon(cloud) === canon(local)) {
+        /* in sync → nothing to do */
+      } else if (dirty && getTs(local) >= getTs(cloud)) {
+        forcePush();                     // our unpushed edits are at least as new → keep them
         diag("local newer — pushed", cloud);
+      } else if (getTs(local) > getTs(cloud)) {
+        forcePush();                     // local strictly newer → push
+        diag("local newer — pushed", cloud);
+      } else {
+        applyCloud(cloud);               // cloud newer, or timestamp tie with different content → cloud wins
+        rerender();
+        diag("resync applied (cloud won)", cloud);
       }
-      // otherwise in sync → nothing to do
     }).catch(function (e) { dbgShow("resync pull FAILED: " + (e && e.message)); });
   }
 
@@ -267,21 +266,18 @@
     showLoading();
     pull().then(function (cloud) {
       var local = gather();
-      var cTs = getTs(cloud);
-      var lTs = getTs(local);
-
-      if (cloud && cTs > lTs) {
-        // Cloud is newer → take it (this is the phone's normal case: empty/old local, real cloud)
+      if (!cloud) {
+        push();                          // first sign-in ever → seed the cloud from whatever's here
+      } else if (canon(cloud) === canon(local)) {
+        /* already identical → nothing to do */
+      } else if (getTs(local) > getTs(cloud)) {
+        push();                          // this device was genuinely edited more recently → push it up
+      } else {
+        // Cloud is newer, OR timestamps tie but content differs (e.g. legacy data with no
+        // timestamp yet): the cloud is the shared source of truth, so converge to it.
         applyCloud(cloud);
         rerender();
-      } else if (!cloud) {
-        // First sign-in ever → seed the cloud from whatever's here
-        push();
-      } else if (lTs > cTs) {
-        // This device was genuinely edited more recently → push it up
-        push();
       }
-      // equal → already in sync, leave as-is
 
       subscribeRealtime();
       ready = true;
