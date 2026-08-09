@@ -486,6 +486,13 @@
   function loadYears() { try { return JSON.parse(localStorage.getItem(YKEY)) || []; } catch (e) { return []; } }
   function persistY() { localStorage.setItem(YKEY, JSON.stringify(extraYears)); }
 
+  // Sync hook: after the cloud layer writes new data to storage, re-read it and re-render
+  // in place (no page reload — reliable on iOS Safari, which caches reloaded pages).
+  window.__resyncApply = function () {
+    trades = load(); holdings = loadHoldings(); contrib = loadContrib(); extraYears = loadYears();
+    render();
+  };
+
   // ---------- computation ----------
   function compute(t) {
     // "Realized P&L" entries carry the P&L directly (no entry/exit prices).

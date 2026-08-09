@@ -71,18 +71,13 @@
       if (session && !currentUser) onLogin(session.user);
       else if (!session && currentUser) { currentUser = null; location.reload(); }
     });
-    // Mobile Safari suspends the realtime socket in the background, so returning to the app
-    // wouldn't otherwise refresh. Re-pull on foreground and re-render if the cloud changed.
+    // Re-sync on every way of returning to the app. iOS suspends realtime in the background and
+    // often restores the page from cache (bfcache) without re-running scripts, so poll all three:
     document.addEventListener("visibilitychange", function () {
-      if (document.visibilityState !== "visible" || !currentUser || !ready) return;
-      pull().then(function (cloud) {
-        if (cloud && canon(cloud) !== canon(gather())) {
-          applyCloud(cloud);
-          try { sessionStorage.setItem(appliedKey, canon(cloud)); } catch (e) {}
-          location.reload();
-        }
-      });
+      if (document.visibilityState === "visible" && ready) syncFromCloud();
     });
+    window.addEventListener("pageshow", function (e) { if (e.persisted && ready) syncFromCloud(); });
+    window.addEventListener("focus", function () { if (ready) syncFromCloud(); });
   }
 
   /* ---------------- sync core ---------------- */
@@ -130,25 +125,28 @@
     return JSON.stringify(KEYS.map(function (k) { return (k in o) ? o[k] : null; }));
   }
 
-  var appliedKey;
+  // Re-render the app in place with whatever is now in storage. No page reload — reloads are
+  // unreliable on iOS Safari (it restores cached pages without re-running scripts).
+  function rerender() {
+    if (typeof window.__resyncApply === "function") { try { window.__resyncApply(); return; } catch (e) {} }
+    location.reload();   // fallback if the app didn't expose the hook
+  }
+
+  // Pull the latest cloud state; if it differs from what's on screen, apply it and re-render.
+  // Called on login and on every "returned to the app" signal.
+  function syncFromCloud() {
+    if (!currentUser) return Promise.resolve();
+    return pull().then(function (cloud) {
+      if (cloud && canon(cloud) !== canon(gather())) { applyCloud(cloud); rerender(); }
+    }).catch(function () {});
+  }
+
   function onLogin(user) {
     currentUser = user;
     showLoading();
-    appliedKey = "sync-applied-" + cfg.app;
     pull().then(function (cloud) {
-      if (cloud && canon(cloud) !== canon(gather())) {
-        applyCloud(cloud);
-        var hash = canon(cloud);
-        // Reload to re-render with the synced data — but only when this is a NEW cloud
-        // state we haven't already applied. Content-aware so refreshes still pick up
-        // updates from another device, while a repeated identical state can't loop.
-        if (sessionStorage.getItem(appliedKey) !== hash) {
-          sessionStorage.setItem(appliedKey, hash);
-          location.reload();
-          return;
-        }
-      }
-      if (!cloud) push();             // first sign-in: seed the cloud from this device
+      if (cloud && canon(cloud) !== canon(gather())) { applyCloud(cloud); rerender(); }
+      else if (!cloud) push();        // first sign-in: seed the cloud from this device
       subscribeRealtime();
       ready = true;
       hideOverlay();
@@ -164,11 +162,7 @@
         { event: "*", schema: "public", table: "user_data", filter: "app=eq." + cfg.app },
         function (payload) {
           var cloud = payload["new"] && payload["new"].data;
-          if (cloud && canon(cloud) !== canon(gather())) {
-            applyCloud(cloud);
-            try { sessionStorage.setItem(appliedKey, canon(cloud)); } catch (e) {}
-            location.reload();
-          }
+          if (cloud && canon(cloud) !== canon(gather())) { applyCloud(cloud); rerender(); }
         })
       .subscribe();
   }
