@@ -71,6 +71,18 @@
       if (session && !currentUser) onLogin(session.user);
       else if (!session && currentUser) { currentUser = null; location.reload(); }
     });
+    // Mobile Safari suspends the realtime socket in the background, so returning to the app
+    // wouldn't otherwise refresh. Re-pull on foreground and re-render if the cloud changed.
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState !== "visible" || !currentUser || !ready) return;
+      pull().then(function (cloud) {
+        if (cloud && canon(cloud) !== canon(gather())) {
+          applyCloud(cloud);
+          try { sessionStorage.setItem(appliedKey, canon(cloud)); } catch (e) {}
+          location.reload();
+        }
+      });
+    });
   }
 
   /* ---------------- sync core ---------------- */
