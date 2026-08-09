@@ -17,6 +17,7 @@
 
   var sb = null;
   var currentUser = null;
+  var recovering = false;     // true while handling a password-reset link
   var ready = false;          // true once the initial pull is done (gates pushes)
   var applyingRemote = false; // true while writing cloud data into localStorage
   var pushTimer = null;
@@ -56,12 +57,17 @@
           .then(function (r) { if (r.error) throw r.error; return (r.data && r.data.prices) || {}; });
       }
     };
+    // Arriving via a password-reset link? Show the "set new password" screen, not the app.
+    recovering = /type=recovery/.test(window.location.hash || "");
     sb.auth.getSession().then(function (res) {
       var session = res.data && res.data.session;
+      if (recovering) { renderSetNewPassword(); return; }
       if (session) onLogin(session.user);
       else showLogin();
     });
-    sb.auth.onAuthStateChange(function (_ev, session) {
+    sb.auth.onAuthStateChange(function (ev, session) {
+      if (ev === "PASSWORD_RECOVERY") { recovering = true; renderSetNewPassword(); return; }
+      if (recovering) return;
       if (session && !currentUser) onLogin(session.user);
       else if (!session && currentUser) { currentUser = null; location.reload(); }
     });
@@ -205,6 +211,9 @@
       + "#sync-card .sync-big-emoji{font-size:38px;margin-bottom:8px;line-height:1;}"
       + "#sync-toggle{margin-top:16px;font-size:14px;opacity:.8;}"
       + "#sync-toggle a{color:#2FD3E1;cursor:pointer;font-weight:600;text-decoration:none;}"
+      + "#sync-forgot{margin-top:10px;font-size:13px;}"
+      + "#sync-forgot a{color:#8FA0BC;cursor:pointer;text-decoration:none;}"
+      + "#sync-forgot a:hover{color:#2FD3E1;}"
       + "#sync-err{min-height:18px;margin-top:12px;font-size:13px;color:#FF7A8C;}"
       + "#sync-spin{width:34px;height:34px;border-radius:50%;border:3px solid rgba(127,140,170,.3);border-top-color:#2FD3E1;"
       + "animation:sync-rot 0.8s linear infinite;margin:0 auto;}"
@@ -255,7 +264,8 @@
         '<div id="sync-toggle">' +
           (isSignup ? "Already have an account? " : "New here? ") +
           '<a id="sync-swap">' + (isSignup ? "Log in" : "Create an account") + '</a>' +
-        '</div>';
+        '</div>' +
+        (isSignup ? '' : '<div id="sync-forgot"><a id="sync-forgot-link">Forgot password?</a></div>');
       document.getElementById("sync-primary").onclick = function () { doAuth(authMode); };
       document.getElementById("sync-swap").onclick = function () { authMode = isSignup ? "login" : "signup"; render(); };
       document.getElementById("sync-pw").onkeydown = function (e) { if (e.key === "Enter") doAuth(authMode); };
@@ -265,6 +275,8 @@
         if (pw.type === "password") { pw.type = "text"; eye.innerHTML = EYE_OFF; eye.setAttribute("aria-label", "Hide password"); }
         else { pw.type = "password"; eye.innerHTML = EYE; eye.setAttribute("aria-label", "Show password"); }
       };
+      var forgot = document.getElementById("sync-forgot-link");
+      if (forgot) forgot.onclick = function () { renderResetRequest((document.getElementById("sync-email").value || "").trim()); };
     }
   }
 
@@ -297,6 +309,66 @@
       if (res.error) setError(res.error.message);
       else setInfo("Sent! Check your inbox and spam for the link.");
     }).catch(function () { setBusy(false); setError("Couldn't resend — try again in a moment."); });
+  }
+
+  // Step 1 of reset: ask for the email, send a reset link.
+  function renderResetRequest(email) {
+    overlay.style.display = "flex";
+    document.getElementById("sync-body").innerHTML =
+      '<h1>Reset your password</h1>' +
+      '<p class="sub">Enter your email and we’ll send you a link to set a new password.</p>' +
+      '<input id="sync-email" type="email" autocomplete="email" placeholder="Email" value="' + esc(email || "") + '" />' +
+      '<button id="sync-primary">Send reset link</button>' +
+      '<div id="sync-err"></div>' +
+      '<div id="sync-toggle"><a id="sync-back">Back to log in</a></div>';
+    document.getElementById("sync-primary").onclick = function () {
+      resetRequest((document.getElementById("sync-email").value || "").trim());
+    };
+    document.getElementById("sync-back").onclick = function () { authMode = "login"; showLogin(); };
+  }
+
+  function resetRequest(email) {
+    if (!email) { setError("Enter your email."); return; }
+    setError(""); setBusy(true);
+    sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname })
+      .then(function (res) {
+        setBusy(false);
+        if (res.error) setError(res.error.message);
+        else setInfo("Sent! Check your email for the reset link.");
+      }).catch(function () { setBusy(false); setError("Couldn't send — try again in a moment."); });
+  }
+
+  // Step 2 of reset: shown after the user taps the emailed link (PASSWORD_RECOVERY).
+  function renderSetNewPassword() {
+    overlay.style.display = "flex";
+    document.getElementById("sync-body").innerHTML =
+      '<h1>Set a new password</h1>' +
+      '<p class="sub">Choose a new password for your account.</p>' +
+      '<div class="sync-pw-wrap">' +
+        '<input id="sync-newpw" type="password" autocomplete="new-password" placeholder="New password" />' +
+        '<button type="button" id="sync-eye" aria-label="Show password" tabindex="-1">' + EYE + '</button>' +
+      '</div>' +
+      '<button id="sync-primary">Update password</button>' +
+      '<div id="sync-err"></div>';
+    var eye = document.getElementById("sync-eye");
+    eye.onclick = function () {
+      var pw = document.getElementById("sync-newpw");
+      if (pw.type === "password") { pw.type = "text"; eye.innerHTML = EYE_OFF; }
+      else { pw.type = "password"; eye.innerHTML = EYE; }
+    };
+    document.getElementById("sync-primary").onclick = function () {
+      var pw = document.getElementById("sync-newpw").value || "";
+      if (pw.length < 6) { setError("Password must be at least 6 characters."); return; }
+      setError(""); setBusy(true);
+      sb.auth.updateUser({ password: pw }).then(function (res) {
+        setBusy(false);
+        if (res.error) { setError(res.error.message); return; }
+        setInfo("Password updated! Signing you in…");
+        recovering = false;
+        try { history.replaceState(null, "", window.location.pathname); } catch (e) {}
+        location.reload();
+      }).catch(function () { setBusy(false); setError("Couldn't update — try again."); });
+    };
   }
 
   function setError(m) { var e = document.getElementById("sync-err"); if (e) { e.textContent = m; e.style.color = ""; } }
