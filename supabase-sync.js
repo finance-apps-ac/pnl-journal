@@ -67,6 +67,7 @@
   function onLocalEdit() {
     if (!ready) return;
     origSet(REV_KEY, String(getRev() + 1));   // durably mark "there are unsaved edits"
+    updatePendingBadge();
     schedulePush();
   }
   function getRev()    { var n = Number(origGet(REV_KEY));    return isNaN(n) ? 0 : n; }
@@ -178,6 +179,7 @@
     if (updatedAt) origSet(SEEN_KEY, String(updatedAt));   // we now mirror this exact cloud version
     origSet(PUSHED_KEY, String(getRev()));                 // in sync with cloud → nothing left to push
     applyingRemote = false;
+    updatePendingBadge();
   }
   function clearLocal() {
     applyingRemote = true;
@@ -203,6 +205,7 @@
       if (r && !r.error) {
         if (getPushed() < revSent) origSet(PUSHED_KEY, String(revSent));  // confirmed in the cloud
         if (r.data && r.data.updated_at) setSeen(r.data.updated_at);
+        updatePendingBadge();
       }
       if (DEBUG) dbgShow("PUSHED rev" + revSent + " — " + (r && r.error ? "ERROR " + JSON.stringify(r.error) : "OK, seen=" + (r.data && r.data.updated_at)) +
         " · " + new Date().toLocaleTimeString());
@@ -584,6 +587,29 @@
     b.innerHTML = '<span id="sync-dot"></span><span>' + esc(email) + '</span><button id="sync-out">Log out</button>';
     document.body.appendChild(b);
     document.getElementById("sync-out").onclick = logout;
+    updatePendingBadge();
+  }
+  // Visible "• Pending" chip whenever this device holds edits not yet confirmed in the cloud.
+  // Driven by the DURABLE counter (hasUnpushed), so it correctly stays lit across an iOS reload —
+  // and doubles as a live diagnostic: if it never clears, the phone's push isn't getting through.
+  function updatePendingBadge() {
+    var badge = document.getElementById("sync-badge");
+    if (!badge) return;
+    var pending = document.getElementById("sync-pending");
+    var dot = document.getElementById("sync-dot");
+    if (currentUser && hasUnpushed()) {
+      if (dot) dot.style.background = "#FFB020";                 // amber dot = unsaved
+      if (!pending) {
+        pending = document.createElement("span");
+        pending.id = "sync-pending";
+        pending.style.cssText = "color:#FFB020;font-weight:700;margin:0 4px;";
+        pending.textContent = "• Pending";
+        badge.insertBefore(pending, badge.querySelector("button"));
+      }
+    } else {
+      if (dot) dot.style.background = "#2FE79B";                 // green dot = synced
+      if (pending) pending.remove();
+    }
   }
 
   function loadScript(src, ok, err) {
