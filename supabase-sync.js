@@ -13,11 +13,14 @@
      sync). Comparing server timestamps removes that entirely.
    - Each device remembers the updated_at it currently mirrors (SEEN_KEY); "did the
      cloud change since I last saw it?" is a pure server-timestamp compare.
-   - A `dirty` flag means we only push when this device has genuine unpushed edits,
-     so backgrounding a stale tab can't clobber a newer device.
-   - Force-push on visibility hidden / pagehide (iOS kills timers), and logout()
-     FLUSHES any pending edit before wiping local — so a trade added seconds before
-     logout is never lost.
+   - "Unsaved edits" is tracked with a DURABLE counter (REV vs PUSHED in localStorage),
+     not an in-memory flag. iOS freezes/kills backgrounded tabs, so an in-memory flag was
+     lost on reload and the phone would let the cloud overwrite an edit that never left the
+     device (one-way "sync"). With a durable counter the reloaded phone still knows it owes
+     a push and re-sends instead of being overwritten.
+   - Pushes fire on a short debounce, on visibility-hidden / pagehide / blur, on a periodic
+     safety timer, and via a keepalive beacon that survives the tab being torn down. logout()
+     also flushes before wiping local. Belt and suspenders, because iOS is hostile to saves.
    =========================================================================== */
 (function () {
   "use strict";
@@ -31,6 +34,12 @@
   // server clock (identical for every device) — never by Date.now(), which drifts between
   // a phone, a laptop and an Android and caused one-directional "sync".  (NOT an app data key.)
   var SEEN_KEY = "__sync_seen_" + cfg.app;
+  // DURABLE "unsaved edits" tracking. REV bumps on every user edit; PUSHED is the rev last
+  // confirmed in the cloud. Both live in localStorage, so an iOS tab that gets frozen/killed
+  // mid-save still knows on reload that it owes the cloud a push — instead of quietly letting
+  // the cloud overwrite the edit. hasUnpushed() === REV > PUSHED. (NOT app data keys.)
+  var REV_KEY = "__sync_rev_" + cfg.app;
+  var PUSHED_KEY = "__sync_pushedrev_" + cfg.app;
 
   var sb = null;
   var currentUser = null;
@@ -40,7 +49,7 @@
   var pushTimer = null;
   var loggedInOnce = false;   // auth can fire the login twice — run it only once
   var realtimeSubscribed = false;
-  var dirty = false;          // true when this device has user edits not yet confirmed in the cloud
+  var currentToken = null;    // cached access token, so the keepalive beacon can fire synchronously
 
   /* ---- 1. Install the localStorage hook SYNCHRONOUSLY (before the app runs) ---- */
   var origSet = window.localStorage.setItem.bind(window.localStorage);
@@ -57,9 +66,12 @@
   // otherwise a freshly-loaded empty device would look "dirty" and overwrite the cloud).
   function onLocalEdit() {
     if (!ready) return;
-    dirty = true;
+    origSet(REV_KEY, String(getRev() + 1));   // durably mark "there are unsaved edits"
     schedulePush();
   }
+  function getRev()    { var n = Number(origGet(REV_KEY));    return isNaN(n) ? 0 : n; }
+  function getPushed() { var n = Number(origGet(PUSHED_KEY)); return isNaN(n) ? 0 : n; }
+  function hasUnpushed() { return getRev() > getPushed(); }   // survives reloads — the real fix
 
   /* ---- 2. Cover the screen immediately so app data never flashes pre-login ---- */
   injectStyles();
@@ -88,35 +100,54 @@
     recovering = /type=recovery/.test(window.location.hash || "");
     sb.auth.getSession().then(function (res) {
       var session = res.data && res.data.session;
+      if (session) currentToken = session.access_token;
       if (recovering) { renderSetNewPassword(); return; }
       if (session) onLogin(session.user);
       else showLogin();
     });
     sb.auth.onAuthStateChange(function (ev, session) {
+      if (session) currentToken = session.access_token;      // keep the beacon's token fresh
       if (ev === "PASSWORD_RECOVERY") { recovering = true; renderSetNewPassword(); return; }
       if (recovering) return;
       if (session && !currentUser) onLogin(session.user);
       else if (!session && currentUser) { currentUser = null; location.reload(); }
     });
 
-    // ---- Critical for iOS: force push the moment the page is about to leave ----
+    // ---- Critical for iOS: get the edit OUT before the tab is frozen/killed ----
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState === "hidden") {
-        forcePush();                       // cancel debounce + push NOW (only if dirty)
+        forcePush();                       // normal push (may not finish before iOS freezes us)…
+        beaconFlush();                     // …so ALSO fire a keepalive beacon that survives teardown
       } else if (document.visibilityState === "visible" && ready) {
         syncFromCloud();
       }
     });
-    window.addEventListener("pagehide", function () {
-      forcePush();
-    });
+    window.addEventListener("pagehide", function () { forcePush(); beaconFlush(); });
+    window.addEventListener("blur",     function () { forcePush(); });   // switching tab/app on desktop
     // Also re-sync when returning from bfcache or focus
-    window.addEventListener("pageshow", function (e) {
-      if (e.persisted && ready) syncFromCloud();
-    });
-    window.addEventListener("focus", function () {
-      if (ready) syncFromCloud();
-    });
+    window.addEventListener("pageshow", function (e) { if (e.persisted && ready) syncFromCloud(); });
+    window.addEventListener("focus",    function () { if (ready) syncFromCloud(); });
+    // Safety net: while the page is open, flush any lingering unsaved edit every few seconds.
+    setInterval(function () {
+      if (ready && currentUser && document.visibilityState === "visible" && hasUnpushed()) push();
+    }, 4000);
+  }
+
+  // Last-ditch flush that survives the page being torn down (iOS backgrounding). Uses a raw
+  // keepalive fetch — the normal supabase-js push does NOT set keepalive, so it can be cancelled
+  // when the tab freezes. Best-effort: if it fails, the durable REV counter re-pushes on next load.
+  function beaconFlush() {
+    if (!currentUser || !currentToken || !hasUnpushed()) return;
+    try {
+      fetch(SUPABASE_URL + "/rest/v1/user_data?on_conflict=user_id,app", {
+        method: "POST", keepalive: true,
+        headers: {
+          "apikey": SUPABASE_KEY, "Authorization": "Bearer " + currentToken,
+          "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates,return=minimal"
+        },
+        body: JSON.stringify({ user_id: currentUser.id, app: cfg.app, data: gather() })
+      }).catch(function () {});
+    } catch (e) {}
   }
 
   /* ---------------- sync core ---------------- */
@@ -145,14 +176,13 @@
       else origRemove(k);
     });
     if (updatedAt) origSet(SEEN_KEY, String(updatedAt));   // we now mirror this exact cloud version
-    dirty = false;                                          // nothing local left to push
+    origSet(PUSHED_KEY, String(getRev()));                 // in sync with cloud → nothing left to push
     applyingRemote = false;
   }
   function clearLocal() {
     applyingRemote = true;
     KEYS.forEach(function (k) { origRemove(k); });
-    origRemove(SEEN_KEY);       // don't leave one customer's sync marker for the next person
-    dirty = false;
+    origRemove(SEEN_KEY); origRemove(REV_KEY); origRemove(PUSHED_KEY);  // reset all sync markers for the next person
     applyingRemote = false;
   }
 
@@ -161,34 +191,37 @@
     return sb.from("user_data").select("data,updated_at").eq("app", cfg.app).maybeSingle()
       .then(function (res) { return res.data || null; });
   }
-  // push() writes local state up and records the server's new updated_at as "seen".
+  // push() writes local state up. It records which REV it sent, so success marks exactly that rev
+  // as pushed (edits made DURING the request stay pending and push again).
   function push() {
     if (!currentUser) return Promise.resolve();
+    var revSent = getRev();
     return sb.from("user_data").upsert(
       { user_id: currentUser.id, app: cfg.app, data: gather() },
       { onConflict: "user_id,app" }
     ).select("updated_at").maybeSingle().then(function (r) {
       if (r && !r.error) {
-        dirty = false;                                      // confirmed in the cloud
+        if (getPushed() < revSent) origSet(PUSHED_KEY, String(revSent));  // confirmed in the cloud
         if (r.data && r.data.updated_at) setSeen(r.data.updated_at);
       }
-      if (DEBUG) dbgShow("PUSHED — " + (r && r.error ? "ERROR " + JSON.stringify(r.error) : "OK, seen=" + (r.data && r.data.updated_at)) +
+      if (DEBUG) dbgShow("PUSHED rev" + revSent + " — " + (r && r.error ? "ERROR " + JSON.stringify(r.error) : "OK, seen=" + (r.data && r.data.updated_at)) +
         " · " + new Date().toLocaleTimeString());
       return r;
     });
   }
 
-  // Normal editing path: debounce so rapid keystrokes don't spam the DB
+  // Normal editing path: a short debounce batches rapid keystrokes but still saves fast.
+  // (Short window + durable REV counter = an iOS freeze can't lose the edit.)
   function schedulePush() {
-    if (!ready || !dirty) return;
+    if (!ready || !hasUnpushed()) return;
     if (pushTimer) clearTimeout(pushTimer);
-    pushTimer = setTimeout(function () { pushTimer = null; push(); }, 800);
+    pushTimer = setTimeout(function () { pushTimer = null; push(); }, 300);
   }
 
   // Used on hide / pagehide — cancel any pending debounce and push immediately,
   // but ONLY if this device actually has unpushed edits (never clobber a newer device).
   function forcePush() {
-    if (!ready || !currentUser || !dirty) return Promise.resolve();
+    if (!ready || !currentUser || !hasUnpushed()) return Promise.resolve();
     if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
     return push();
   }
@@ -205,14 +238,15 @@
     var local = gather();
     if (!row) {
       // No cloud row yet. Seed it if this device actually holds data (or has pending edits).
-      if (dirty || KEYS.some(function (k) { return origGet(k) !== null; })) return push();
+      if (hasUnpushed() || KEYS.some(function (k) { return origGet(k) !== null; })) return push();
       return Promise.resolve();
     }
     var cloudMoved = (row.updated_at !== getSeen());        // cloud changed since we last synced?
     var differs = (canon(row.data) !== canon(local));
 
-    if (dirty) {
-      // This device has edits the user just made and is looking at → they win. Push them up.
+    if (hasUnpushed()) {
+      // This device has edits not yet confirmed in the cloud — even across an iOS reload, thanks to
+      // the durable REV counter. They win: push them up instead of letting the cloud overwrite them.
       return push();
     }
     if (cloudMoved && differs) {
@@ -245,7 +279,7 @@
     var cloudLen = (row && row.data && row.data[k]) ? String(row.data[k]).length : 0;
     dbgShow(
       "SYNC DEBUG · " + label + "\n" +
-      "user: " + (currentUser ? currentUser.email : "—") + " · ready: " + ready + " · dirty: " + dirty + "\n" +
+      "user: " + (currentUser ? currentUser.email : "—") + " · ready: " + ready + " · unpushed: " + hasUnpushed() + " (rev " + getRev() + "/" + getPushed() + ")\n" +
       "cloud row: " + (row ? "EXISTS" : "NONE") + " · cloud len: " + cloudLen + " · cloud updated_at: " + (row ? row.updated_at : "—") + "\n" +
       "here len: " + localLen + " · seen: " + getSeen() + "\n" +
       "cloud moved since seen: " + (row ? (row.updated_at !== getSeen()) : "n/a") + "\n" +
@@ -339,7 +373,7 @@
       clearLocal();                   // don't leave one customer's data for the next
       sb.auth.signOut().then(function () { location.reload(); });
     };
-    if (dirty || pushTimer) {
+    if (hasUnpushed() || pushTimer) {
       if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
       push().then(finish, finish);    // proceed whether the flush succeeds or fails
     } else {
