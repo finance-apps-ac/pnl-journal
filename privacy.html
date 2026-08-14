@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Privacy Policy — P&L Trading Journal & Budget Tracker</title>
+<style>
+  :root{
+    --bg:#080D1A; --surface:#0F1728; --border:#26324E; --ink:#EAF2FB; --ink-soft:#94A4BF;
+    --accent:#2FD3E1; --maxw:760px;
+    --font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#F4F6FB; --surface:#FFFFFF; --border:#DCE3EE; --ink:#0F1A2E; --ink-soft:#54627C; --accent:#0AA3B2; }
+  }
+  *,*::before,*::after{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.65;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:clamp(28px,6vw,64px) clamp(18px,5vw,32px) 80px;}
+  .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:700;}
+  h1{font-size:clamp(26px,5vw,36px);font-weight:800;letter-spacing:-.02em;margin:10px 0 4px;}
+  .updated{color:var(--ink-soft);font-size:14px;margin:0 0 8px;}
+  .intro{color:var(--ink-soft);font-size:15.5px;margin:18px 0 8px;}
+  h2{font-size:18px;font-weight:700;margin:34px 0 8px;padding-top:20px;border-top:1px solid var(--border);}
+  h2:first-of-type{border-top:0;}
+  p,li{font-size:15px;color:var(--ink);}
+  p{margin:10px 0;}
+  ul{margin:10px 0;padding-left:22px;}
+  li{margin:7px 0;}
+  a{color:var(--accent);}
+  strong{font-weight:650;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin:16px 0;}
+  footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);color:var(--ink-soft);font-size:13.5px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Privacy Policy</div>
+  <h1>P&amp;L Trading Journal &amp; Budget Tracker</h1>
+  <p class="updated">Last updated: August 14, 2026</p>
+  <p class="intro">This policy explains what information the P&amp;L Trading Journal and Budget Tracker apps (“the apps”), provided by Anna Cardoso (“we”), collect, how it is used, and the choices you have. We built these apps to be private by default: your financial data is yours, and we do not sell it, share it for advertising, or use it for anything other than running the apps for you.</p>
+
+  <h2>Information we collect</h2>
+  <ul>
+    <li><strong>Account details.</strong> When you create an account, we collect your <strong>email address</strong> and a <strong>password</strong> (stored only as a secure one-way hash — we never see your actual password).</li>
+    <li><strong>The data you enter.</strong> The trades, holdings, contributions, and budget figures you type into the apps. This is stored so it can sync across your devices.</li>
+    <li><strong>Stock symbols for live prices.</strong> When you tap “Live prices,” the ticker symbols of your positions (e.g. AAPL) are sent to our market-data provider to fetch current prices. No account or personal information is attached to those requests.</li>
+  </ul>
+  <div class="card">We do <strong>not</strong> collect your name, location, contacts, photos, device identifiers for tracking, or any analytics/behavioral data. The apps contain <strong>no advertising and no third-party trackers.</strong></div>
+
+  <h2>How we use your information</h2>
+  <ul>
+    <li>To provide the core features: saving your data and syncing it across your devices.</li>
+    <li>To authenticate you (sign-in, email confirmation, password reset).</li>
+    <li>To fetch live market prices when you request them.</li>
+  </ul>
+  <p>We do not use your information for advertising, profiling, or any purpose beyond operating the apps. We never sell your data.</p>
+
+  <h2>Where your data is stored & how it’s protected</h2>
+  <p>Your account and data are stored using <strong>Supabase</strong> (a hosted PostgreSQL database and authentication service) on your behalf. Access is protected by <strong>row-level security</strong>: each account can only ever read or write its own data — no other user, and no one holding the app’s public key, can access it. All data is transmitted over encrypted (HTTPS/TLS) connections.</p>
+
+  <h2>Third-party services (data processors)</h2>
+  <ul>
+    <li><strong>Supabase</strong> — stores your account and app data and handles sign-in.</li>
+    <li><strong>Twelve Data</strong> — provides live stock prices; receives only ticker symbols, not your identity.</li>
+  </ul>
+  <p>These providers process data solely to deliver the apps’ functionality and are bound by their own privacy and security terms.</p>
+
+  <h2>Your rights and choices</h2>
+  <ul>
+    <li><strong>Access &amp; export.</strong> Your data is visible in the app at any time, and you can export it to a CSV file using the built-in “Export CSV” feature.</li>
+    <li><strong>Delete your account.</strong> You can permanently delete your account and all associated data from within the app at any time (Settings → Delete account). Deletion is immediate and irreversible.</li>
+    <li><strong>Correct your data.</strong> You can edit or remove any entry directly in the app.</li>
+  </ul>
+
+  <h2>Data retention</h2>
+  <p>We keep your data for as long as your account exists. When you delete your account, your data is removed from our systems.</p>
+
+  <h2>Children</h2>
+  <p>The apps are not directed to children under 13, and we do not knowingly collect information from them.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>If we make material changes, we will update the “Last updated” date above and, where appropriate, notify you in the app.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about this policy or your data? Email <a href="mailto:ac22nft@gmail.com">ac22nft@gmail.com</a>.</p>
+
+  <footer>© 2026 Anna Cardoso. All rights reserved.</footer>
+</div>
+</body>
+</html>
