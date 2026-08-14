@@ -252,7 +252,14 @@
       // the durable REV counter. They win: push them up instead of letting the cloud overwrite them.
       return push();
     }
-    if (cloudMoved && differs) {
+    if (differs && !cloudMoved) {
+      // Content is the source of truth: local differs from the cloud, but the cloud hasn't moved
+      // since we last synced → this device holds changes the cloud never got (an edit the rev
+      // counter missed, or one made under an older app version). Push them. This self-heals the
+      // "invisible edit" case where hasUnpushed() is stale.
+      return push();
+    }
+    if (differs && cloudMoved) {
       applyCloud(row.data, row.updated_at);                 // another device changed things → take it
       rerender();
       return Promise.resolve();
