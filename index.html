@@ -316,7 +316,7 @@
       <h2>Current holdings</h2>
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
         <span class="card-sub" id="holdingsTotal"></span>
-        <button type="button" class="btn" id="refreshPricesBtn" title="Update each holding's value from the live market price">↻ Live prices</button>
+        <button type="button" class="btn" id="refreshPricesBtn" title="Prices auto-update about every 5 minutes while the market's open — click for an instant refresh">↻ Live prices</button>
       </div>
     </div>
     <div class="table-wrap">
@@ -984,16 +984,17 @@
 
   // ---------- live prices (updates each holding's Value = live price × shares) ----------
   function setPriceNote(t) { var n = document.getElementById("priceNote"); if (n) n.textContent = t; }
-  function refreshPrices() {
+  var lastPriceAt = 0;
+  // silent=true → auto refresh: no button/spinner, and DISPLAY-ONLY (we don't persist, so
+  // constantly-changing prices never churn the cloud sync). The manual button saves the snapshot.
+  function refreshPrices(silent) {
     var btn = document.getElementById("refreshPricesBtn");
-    if (!window.SyncPrices || !window.SyncPrices.getQuotes) { setPriceNote("Log in to fetch live prices."); return; }
-    var opens = openPositions();
+    if (!window.SyncPrices || !window.SyncPrices.getQuotes) { if (!silent) setPriceNote("Log in to fetch live prices."); return; }
     var syms = [];
     holdings.forEach(function (h) { if (h.symbol) syms.push(String(h.symbol).toUpperCase()); });
-    opens.forEach(function (t) { if (t.symbol) syms.push(String(t.symbol).toUpperCase()); });
-    if (!syms.length) { setPriceNote("Add a position first."); return; }
-    if (btn) { btn.disabled = true; btn.textContent = "↻ Updating…"; }
-    setPriceNote("Fetching live prices…");
+    if (!syms.length) { if (!silent) setPriceNote("Add a position first."); return; }
+    if (!silent && btn) { btn.disabled = true; btn.textContent = "↻ Updating…"; }
+    if (!silent) setPriceNote("Fetching live prices…");
     window.SyncPrices.getQuotes(syms).then(function (prices) {
       var updated = 0, missing = [];
       holdings.forEach(function (h) {
@@ -1002,24 +1003,47 @@
           h.value = Math.round(p * Number(h.shares) * 100) / 100; updated++;
         } else if (p == null) { missing.push(h.symbol); }
       });
-      opens.forEach(function (t) {
-        var p = prices[String(t.symbol).toUpperCase()];
-        if (p != null && !isNaN(p) && t.qty !== "" && t.qty != null) {
-          t.mktValue = Math.round(p * Number(t.qty) * 100) / 100; updated++;
-        } else if (p == null) { missing.push(t.symbol); }
-      });
-      persistH(); persist(); render();
+      if (!silent) persistH();     // manual refresh saves the snapshot; auto is display-only
+      render();
+      lastPriceAt = Date.now();
       var now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      var msg = updated + (updated === 1 ? " position" : " positions") + " updated · " + now;
-      if (missing.length) msg += " · no price for " + missing.filter(function (v, i, a) { return a.indexOf(v) === i; }).join(", ");
+      var msg = (silent ? "Auto-updated · " : (updated + (updated === 1 ? " position" : " positions") + " updated · ")) + now;
+      if (missing.length && !silent) msg += " · no price for " + missing.filter(function (v, i, a) { return a.indexOf(v) === i; }).join(", ");
       setPriceNote(msg);
     }).catch(function () {
-      setPriceNote("Couldn't fetch prices — try again in a moment.");
+      if (!silent) setPriceNote("Couldn't fetch prices — try again in a moment.");
     }).then(function () {
-      if (btn) { btn.disabled = false; btn.textContent = "↻ Live prices"; }
+      if (!silent && btn) { btn.disabled = false; btn.textContent = "↻ Live prices"; }
     });
   }
-  document.getElementById("refreshPricesBtn").addEventListener("click", refreshPrices);
+  document.getElementById("refreshPricesBtn").addEventListener("click", function () { refreshPrices(false); });
+
+  // US market hours: Mon–Fri, 9:30 AM – 4:00 PM America/New_York (ignores holidays; those just
+  // return the last price, harmlessly). Fail-open if the timezone can't be read.
+  function marketOpen() {
+    try {
+      var wd = "", hh = 0, mm = 0;
+      new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short",
+        hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).forEach(function (p) {
+        if (p.type === "weekday") wd = p.value;
+        else if (p.type === "hour") hh = parseInt(p.value, 10) % 24;
+        else if (p.type === "minute") mm = parseInt(p.value, 10);
+      });
+      if (wd === "Sat" || wd === "Sun") return false;
+      var mins = hh * 60 + mm;
+      return mins >= (9 * 60 + 30) && mins < (16 * 60);
+    } catch (e) { return true; }
+  }
+
+  // Auto-refresh: fetch once when the app opens (shows the current/last price even after hours),
+  // then at most every 5 minutes while the market's open and the tab is visible.
+  function autoTick() {
+    if (!window.SyncPrices || !holdings.length || document.visibilityState !== "visible") return;
+    if (lastPriceAt === 0 || (marketOpen() && Date.now() - lastPriceAt >= 5 * 60 * 1000)) refreshPrices(true);
+  }
+  setInterval(autoTick, 20000);   // check every 20s; the throttle above keeps real fetches to ~1 / 5 min
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") autoTick(); });
+  autoTick();
 
   // ---------- CSV ----------
   var FIELDS = ["openDate","symbol","direction","qty","entry","exit","closeDate","fees","manualPnl","strategy","notes"];
