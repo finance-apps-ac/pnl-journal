@@ -596,28 +596,65 @@
                value: (t.mktValue == null ? basis : t.mktValue), cost: t.entry };
     }));
 
+    // Group positions by ticker so each stock shows as ONE line. Buys add up; a partial sell
+    // shrinks the open shares → the position drops. Cost / avg cost / P&L are computed only over
+    // shares that have a logged price; shares with no price just add to the share count.
+    var order = [], groups = {};
     positions.forEach(function (x) {
-      var hasVal = !(x.value === "" || x.value == null);
-      var val = hasVal ? Number(x.value) : 0; totVal += val;
-      var costNum = (x.cost === "" || x.cost == null) ? null : Number(x.cost);
-      var basis = costNum != null ? costNum * Number(x.shares) : null;
-      var unreal = (basis != null && hasVal) ? val - basis : null;
-      if (unreal != null) { totUnreal += unreal; hasUnreal = true; }
-      var tag = x.kind === "t"
+      var key = String(x.symbol || "").toUpperCase();
+      if (!groups[key]) { groups[key] = []; order.push(key); }
+      groups[key].push(x);
+    });
+
+    order.forEach(function (key) {
+      var grp = groups[key];
+      var shares = 0, value = 0, hasVal = false, costBasis = 0, sharesWithCost = 0, unreal = 0, hasU = false;
+      grp.forEach(function (x) {
+        var sh = (x.shares === "" || x.shares == null) ? 0 : Number(x.shares);
+        shares += sh;
+        var v = (x.value === "" || x.value == null) ? null : Number(x.value);
+        if (v != null) { value += v; hasVal = true; }
+        var costNum = (x.cost === "" || x.cost == null) ? null : Number(x.cost);
+        if (costNum != null && sh) {
+          var b = costNum * sh; costBasis += b; sharesWithCost += sh;
+          if (v != null) { unreal += v - b; hasU = true; }
+        }
+      });
+      var avgCost = sharesWithCost > 0 ? costBasis / sharesWithCost : null;
+      if (hasVal) totVal += value;
+      if (hasU) { totUnreal += unreal; hasUnreal = true; }
+      var isOpen = grp.some(function (z) { return z.kind === "t"; });
+      var tag = isOpen
         ? ' <span style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);border:1px solid var(--border);border-radius:5px;padding:1px 5px;margin-left:6px;vertical-align:middle;">open</span>'
         : '';
-      body += '<tr>' +
-        '<td class="l sym">' + esc(x.symbol) + tag + '</td>' +
-        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pshares="' + x.id +
-          '" value="' + (x.shares === "" || x.shares == null ? "" : esc(x.shares)) + '" placeholder="—"></td>' +
-        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pval="' + x.id +
-          '" value="' + (x.value === "" || x.value == null ? "" : esc(x.value)) + '" placeholder="—"></td>' +
-        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pcost="' + x.id +
-          '" value="' + (x.cost === "" || x.cost == null ? "" : esc(x.cost)) + '" placeholder="—"></td>' +
-        '<td class="num">' + (basis != null ? money(basis) : "—") + '</td>' +
-        '<td class="num ' + (unreal == null ? "" : cls(unreal)) + '">' + (unreal == null ? "—" : signed(unreal)) + '</td>' +
-        '<td><button class="del" title="Remove" data-pid="' + x.id + '">✕</button></td>' +
-      '</tr>';
+
+      if (grp.length === 1) {
+        // Only one entry for this ticker → keep the row directly editable (unchanged behavior).
+        var p = grp[0];
+        body += '<tr>' +
+          '<td class="l sym">' + esc(p.symbol) + tag + '</td>' +
+          '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pshares="' + p.id +
+            '" value="' + (p.shares === "" || p.shares == null ? "" : esc(p.shares)) + '" placeholder="—"></td>' +
+          '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pval="' + p.id +
+            '" value="' + (p.value === "" || p.value == null ? "" : esc(p.value)) + '" placeholder="—"></td>' +
+          '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pcost="' + p.id +
+            '" value="' + (p.cost === "" || p.cost == null ? "" : esc(p.cost)) + '" placeholder="—"></td>' +
+          '<td class="num">' + (avgCost != null ? money(costBasis) : "—") + '</td>' +
+          '<td class="num ' + (hasU ? cls(unreal) : "") + '">' + (hasU ? signed(unreal) : "—") + '</td>' +
+          '<td><button class="del" title="Remove" data-pid="' + p.id + '">✕</button></td>' +
+        '</tr>';
+      } else {
+        // Multiple entries for this ticker → one combined, computed line for the whole position.
+        body += '<tr>' +
+          '<td class="l sym">' + esc(grp[0].symbol) + tag + '</td>' +
+          '<td class="num">' + esc(shares) + '</td>' +
+          '<td class="num">' + (hasVal ? money(value) : "—") + '</td>' +
+          '<td class="num">' + (avgCost != null ? "$" + avgCost.toFixed(2) : "—") + '</td>' +
+          '<td class="num">' + (avgCost != null ? money(costBasis) : "—") + '</td>' +
+          '<td class="num ' + (hasU ? cls(unreal) : "") + '">' + (hasU ? signed(unreal) : "—") + '</td>' +
+          '<td><button class="del" title="Remove entire position" data-psym="' + esc(key) + '">✕</button></td>' +
+        '</tr>';
+      }
     });
     if (!positions.length) {
       body = '<tr><td colspan="7" class="empty">No holdings yet — add a trade (leave Exit blank) or a holding below.</td></tr>';
@@ -667,6 +704,16 @@
           trades = trades.filter(function (z) { return z.id !== id; }); persist();
         }
         render();
+      });
+    });
+    // Removing a merged position clears every entry for that ticker: manual holdings + open
+    // trades. Closed trades (realized history) are kept.
+    Array.prototype.forEach.call(document.querySelectorAll("[data-psym]"), function (b) {
+      b.addEventListener("click", function () {
+        var sym = b.getAttribute("data-psym");
+        holdings = holdings.filter(function (z) { return String(z.symbol || "").toUpperCase() !== sym; });
+        trades = trades.filter(function (z) { return !(String(z.symbol || "").toUpperCase() === sym && compute(z).open); });
+        persistH(); persist(); render();
       });
     });
   }
