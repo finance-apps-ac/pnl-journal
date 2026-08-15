@@ -439,6 +439,56 @@
   function seedHoldings() { return []; }
   function hold(sym, shares, value, cost) { return { id: uid(), symbol: sym, shares: shares, cost: (cost == null ? "" : cost), value: value }; }
 
+  // Buy/sell a symbol's shares in the holdings list. Positive delta = buy (average cost blends
+  // when the whole position has a coherent cost); negative = sell (subtracts). A position that
+  // hits zero shares is removed. Value tracks cost basis until a live-price refresh overwrites it.
+  function upsertHolding(sym, deltaShares, costPerShare) {
+    sym = String(sym || "").trim().toUpperCase();
+    var h = holdings.filter(function (z) { return String(z.symbol || "").trim().toUpperCase() === sym; })[0];
+    if (deltaShares > 0) {
+      var cps = (costPerShare == null || costPerShare === "" || isNaN(Number(costPerShare))) ? null : Number(costPerShare);
+      if (!h) {
+        holdings.push({ id: uid(), symbol: sym, shares: deltaShares,
+          value: cps != null ? cps * deltaShares : 0, cost: cps != null ? cps : "" });
+      } else {
+        var oldSh = Number(h.shares) || 0;
+        var oldCost = (h.cost === "" || h.cost == null) ? null : Number(h.cost);
+        var newSh = oldSh + deltaShares;
+        if (cps != null && (oldCost != null || oldSh === 0)) {
+          h.cost = ((oldCost != null ? oldCost : 0) * oldSh + cps * deltaShares) / newSh;   // blended avg cost
+        } else if (cps == null && oldCost != null) {
+          h.cost = "";   // mixing cost-less shares into a priced position → position is now mixed
+        }
+        h.value = (Number(h.value) || 0) + (cps != null ? cps * deltaShares : 0);
+        h.shares = newSh;
+      }
+    } else if (deltaShares < 0 && h) {
+      var oldSh2 = Number(h.shares) || 0;
+      var remaining = oldSh2 - Math.min(-deltaShares, oldSh2);
+      if (remaining <= 0) {
+        holdings = holdings.filter(function (z) { return z !== h; });
+      } else {
+        if (oldSh2 > 0) h.value = (Number(h.value) || 0) * (remaining / oldSh2);   // shrink value proportionally
+        h.shares = remaining;
+      }
+    }
+    persistH();
+  }
+
+  // New model: positions live in holdings, never as "open trades." Fold any open-buy trades
+  // (entry logged, no exit) into holdings and drop them from the log. Runs on load AND after every
+  // cloud sync, so legacy open trades arriving from another device get absorbed too. No-op once clean.
+  function foldOpenBuys() {
+    var opens = trades.filter(function (t) { return compute(t).open && (t.manualPnl == null || t.manualPnl === ""); });
+    if (!opens.length) return;
+    opens.forEach(function (t) {
+      if (t.symbol && Number(t.qty) > 0) upsertHolding(t.symbol, Number(t.qty), (t.entry === "" || t.entry == null) ? null : Number(t.entry));
+    });
+    trades = trades.filter(function (t) { return !(compute(t).open && (t.manualPnl == null || t.manualPnl === "")); });
+    persist();
+  }
+  foldOpenBuys();
+
   // ---------- portfolio contributions (monthly funds added) ----------
   var CKEY = "ledger.contrib.v1";
   var contrib = loadContrib();
@@ -458,6 +508,7 @@
   // in place (no page reload — reliable on iOS Safari, which caches reloaded pages).
   window.__resyncApply = function () {
     trades = load(); holdings = loadHoldings(); contrib = loadContrib(); extraYears = loadYears();
+    foldOpenBuys();
     render();
   };
 
@@ -585,76 +636,31 @@
 
   function renderHoldings() {
     var totVal = 0, totUnreal = 0, hasUnreal = false, body = "";
-    // Current positions = manually-added holdings + open trades.
+    // Current positions live entirely in the holdings list (one editable row per stock). Buys
+    // post in here, sells subtract from here — so there's never a duplicate or a non-editable line.
     var positions = holdings.map(function (h) {
-      return { id: h.id, kind: "h", symbol: h.symbol, shares: h.shares, value: h.value, cost: h.cost };
-    }).concat(openPositions().map(function (t) {
-      // Until a live price is fetched, show an open position at its cost (value = cost basis).
-      var basis = (t.entry !== "" && t.entry != null && t.qty !== "" && t.qty != null)
-        ? Number(t.entry) * Number(t.qty) : "";
-      return { id: t.id, kind: "t", symbol: t.symbol, shares: t.qty,
-               value: (t.mktValue == null ? basis : t.mktValue), cost: t.entry };
-    }));
-
-    // Group positions by ticker so each stock shows as ONE line. Buys add up; a partial sell
-    // shrinks the open shares → the position drops. Cost / avg cost / P&L are computed only over
-    // shares that have a logged price; shares with no price just add to the share count.
-    var order = [], groups = {};
-    positions.forEach(function (x) {
-      var key = String(x.symbol || "").toUpperCase();
-      if (!groups[key]) { groups[key] = []; order.push(key); }
-      groups[key].push(x);
+      return { id: h.id, symbol: h.symbol, shares: h.shares, value: h.value, cost: h.cost };
     });
 
-    order.forEach(function (key) {
-      var grp = groups[key];
-      var shares = 0, value = 0, hasVal = false, costBasis = 0, sharesWithCost = 0, unreal = 0, hasU = false;
-      grp.forEach(function (x) {
-        var sh = (x.shares === "" || x.shares == null) ? 0 : Number(x.shares);
-        shares += sh;
-        var v = (x.value === "" || x.value == null) ? null : Number(x.value);
-        if (v != null) { value += v; hasVal = true; }
-        var costNum = (x.cost === "" || x.cost == null) ? null : Number(x.cost);
-        if (costNum != null && sh) {
-          var b = costNum * sh; costBasis += b; sharesWithCost += sh;
-          if (v != null) { unreal += v - b; hasU = true; }
-        }
-      });
-      var avgCost = sharesWithCost > 0 ? costBasis / sharesWithCost : null;
-      if (hasVal) totVal += value;
-      if (hasU) { totUnreal += unreal; hasUnreal = true; }
-      var isOpen = grp.some(function (z) { return z.kind === "t"; });
-      var tag = isOpen
-        ? ' <span style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);border:1px solid var(--border);border-radius:5px;padding:1px 5px;margin-left:6px;vertical-align:middle;">open</span>'
-        : '';
-
-      if (grp.length === 1) {
-        // Only one entry for this ticker → keep the row directly editable (unchanged behavior).
-        var p = grp[0];
-        body += '<tr>' +
-          '<td class="l sym">' + esc(p.symbol) + tag + '</td>' +
-          '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pshares="' + p.id +
-            '" value="' + (p.shares === "" || p.shares == null ? "" : esc(p.shares)) + '" placeholder="—"></td>' +
-          '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pval="' + p.id +
-            '" value="' + (p.value === "" || p.value == null ? "" : esc(p.value)) + '" placeholder="—"></td>' +
-          '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pcost="' + p.id +
-            '" value="' + (p.cost === "" || p.cost == null ? "" : esc(p.cost)) + '" placeholder="—"></td>' +
-          '<td class="num">' + (avgCost != null ? money(costBasis) : "—") + '</td>' +
-          '<td class="num ' + (hasU ? cls(unreal) : "") + '">' + (hasU ? signed(unreal) : "—") + '</td>' +
-          '<td><button class="del" title="Remove" data-pid="' + p.id + '">✕</button></td>' +
-        '</tr>';
-      } else {
-        // Multiple entries for this ticker → one combined, computed line for the whole position.
-        body += '<tr>' +
-          '<td class="l sym">' + esc(grp[0].symbol) + tag + '</td>' +
-          '<td class="num">' + esc(shares) + '</td>' +
-          '<td class="num">' + (hasVal ? money(value) : "—") + '</td>' +
-          '<td class="num">' + (avgCost != null ? "$" + avgCost.toFixed(2) : "—") + '</td>' +
-          '<td class="num">' + (avgCost != null ? money(costBasis) : "—") + '</td>' +
-          '<td class="num ' + (hasU ? cls(unreal) : "") + '">' + (hasU ? signed(unreal) : "—") + '</td>' +
-          '<td><button class="del" title="Remove entire position" data-psym="' + esc(key) + '">✕</button></td>' +
-        '</tr>';
-      }
+    positions.forEach(function (x) {
+      var hasVal = !(x.value === "" || x.value == null);
+      var val = hasVal ? Number(x.value) : 0; totVal += val;
+      var costNum = (x.cost === "" || x.cost == null) ? null : Number(x.cost);
+      var basis = costNum != null ? costNum * Number(x.shares) : null;
+      var unreal = (basis != null && hasVal) ? val - basis : null;
+      if (unreal != null) { totUnreal += unreal; hasUnreal = true; }
+      body += '<tr>' +
+        '<td class="l sym">' + esc(x.symbol) + '</td>' +
+        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pshares="' + x.id +
+          '" value="' + (x.shares === "" || x.shares == null ? "" : esc(x.shares)) + '" placeholder="—"></td>' +
+        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pval="' + x.id +
+          '" value="' + (x.value === "" || x.value == null ? "" : esc(x.value)) + '" placeholder="—"></td>' +
+        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pcost="' + x.id +
+          '" value="' + (x.cost === "" || x.cost == null ? "" : esc(x.cost)) + '" placeholder="—"></td>' +
+        '<td class="num">' + (basis != null ? money(basis) : "—") + '</td>' +
+        '<td class="num ' + (unreal == null ? "" : cls(unreal)) + '">' + (unreal == null ? "—" : signed(unreal)) + '</td>' +
+        '<td><button class="del" title="Remove" data-pid="' + x.id + '">✕</button></td>' +
+      '</tr>';
     });
     if (!positions.length) {
       body = '<tr><td colspan="7" class="empty">No holdings yet — add a trade (leave Exit blank) or a holding below.</td></tr>';
@@ -704,16 +710,6 @@
           trades = trades.filter(function (z) { return z.id !== id; }); persist();
         }
         render();
-      });
-    });
-    // Removing a merged position clears every entry for that ticker: manual holdings + open
-    // trades. Closed trades (realized history) are kept.
-    Array.prototype.forEach.call(document.querySelectorAll("[data-psym]"), function (b) {
-      b.addEventListener("click", function () {
-        var sym = b.getAttribute("data-psym");
-        holdings = holdings.filter(function (z) { return String(z.symbol || "").toUpperCase() !== sym; });
-        trades = trades.filter(function (z) { return !(String(z.symbol || "").toUpperCase() === sym && compute(z).open); });
-        persistH(); persist(); render();
       });
     });
   }
@@ -930,18 +926,19 @@
     var dir = g("f-dir"), strategy = g("f-strategy").trim(), notes = g("f-notes").trim();
     var exit = g("f-exit") === "" ? "" : parseFloat(g("f-exit"));
     var closeDate = g("f-close");
-    var closing = exit !== "" && closeDate !== "";           // a real close needs price + date
-    var exitQty = g("f-exitqty") === "" ? qty : parseFloat(g("f-exitqty"));
-    var base = { symbol: sym, direction: dir, entry: entry, fees: 0, strategy: strategy, notes: notes };
+    var closing = exit !== "" && closeDate !== "";           // a sell needs a price + a date
 
-    if (closing && exitQty > 0 && exitQty < qty) {
-      // Partial close: realize P&L on the shares sold, keep the rest as an open position.
-      trades.push(Object.assign({ id: uid(), openDate: openDate, qty: exitQty, exit: exit, closeDate: closeDate }, base));
-      trades.push(Object.assign({ id: uid(), openDate: openDate, qty: qty - exitQty, exit: "", closeDate: "" }, base));
+    if (closing) {
+      // A SELL: record the realized P&L in the trade log, and subtract the shares from the holding.
+      trades.push({ id: uid(), openDate: openDate, qty: qty, exit: exit, closeDate: closeDate,
+        symbol: sym, direction: dir, entry: entry, fees: 0, strategy: strategy, notes: notes });
+      upsertHolding(sym, -qty);
+      persist();
     } else {
-      trades.push(Object.assign({ id: uid(), openDate: openDate, qty: qty, exit: exit, closeDate: closeDate }, base));
+      // A BUY: post straight into the holding — shares add up, average cost blends. No open row.
+      upsertHolding(sym, qty, entry);
     }
-    persist(); render();
+    render();
     this.reset();
   });
 
@@ -967,9 +964,21 @@
     var g = function (id) { return document.getElementById(id).value; };
     var sym = g("h-symbol").trim().toUpperCase(), sh = parseFloat(g("h-shares"));
     if (!sym || !(sh > 0)) return;
-    holdings.push({ id: uid(), symbol: sym, shares: sh,
-                    cost: g("h-cost") === "" ? "" : parseFloat(g("h-cost")),
-                    value: parseFloat(g("h-value")) || 0 });
+    var cost = g("h-cost") === "" ? "" : parseFloat(g("h-cost"));
+    var valIn = g("h-value") === "" ? null : parseFloat(g("h-value"));
+    var existing = holdings.filter(function (z) { return String(z.symbol || "").trim().toUpperCase() === sym; })[0];
+    if (existing) {
+      // Merge into the existing position for this ticker (one line per stock).
+      var oldSh = Number(existing.shares) || 0, newSh = oldSh + sh;
+      var oldCost = (existing.cost === "" || existing.cost == null) ? null : Number(existing.cost);
+      if (cost !== "" && (oldCost != null || oldSh === 0)) existing.cost = ((oldCost != null ? oldCost : 0) * oldSh + cost * sh) / newSh;
+      else if (cost === "" && oldCost != null) existing.cost = "";
+      existing.shares = newSh;
+      existing.value = (Number(existing.value) || 0) + (valIn != null ? valIn : (cost !== "" ? cost * sh : 0));
+    } else {
+      holdings.push({ id: uid(), symbol: sym, shares: sh, cost: cost,
+        value: valIn != null ? valIn : (cost !== "" ? cost * sh : 0) });
+    }
     persistH(); renderHoldings(); this.reset();
   });
 
