@@ -936,7 +936,9 @@
           '<input class="note-input" type="text" data-tnote="' + t.id + '" value="' + esc(tnote) + '" placeholder="＋ note" spellcheck="false">' +
           '<button type="button" class="note-exp" data-texp="' + t.id + '" title="Open note to read / edit">⤢</button>' +
         '</div></td>' +
-        '<td class="num">' + (hasQty ? esc(t.qty) : "—") + '</td>' +
+        '<td class="num">' + (c.manual ? "—" :
+          '<input class="cost-input" type="number" step="any" min="0" data-tqty="' + t.id +
+            '" value="' + (hasQty ? esc(t.qty) : "") + '" placeholder="—">') + '</td>' +
         '<td class="num">' + soldVal + '</td>' +
         '<td><button class="del" title="Delete" data-id="' + t.id + '">✕</button></td>' +
       '</tr>';
@@ -961,6 +963,12 @@
     });
     Array.prototype.forEach.call(document.querySelectorAll("[data-texp]"), function (b) {
       b.addEventListener("click", function () { openNoteModal(b.getAttribute("data-texp")); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tqty]"), function (inp) {
+      inp.addEventListener("change", function () {
+        var tr = trades.filter(function (z) { return z.id === inp.getAttribute("data-tqty"); })[0];
+        if (tr) { tr.qty = inp.value === "" ? "" : parseFloat(inp.value); persist(); render(); }   // Value & P&L recompute
+      });
     });
   }
 
