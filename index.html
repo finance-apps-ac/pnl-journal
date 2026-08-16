@@ -390,7 +390,7 @@
     <div class="table-wrap">
       <table id="tradesTable">
         <thead><tr>
-          <th class="l">Date</th><th class="l">Tickers</th><th>P&amp;L</th><th class="l">Notes</th><th></th>
+          <th class="l">Date</th><th class="l">Tickers</th><th>P&amp;L</th><th class="l">Notes</th><th>Qty</th><th>Value</th><th></th>
         </tr></thead>
         <tbody id="tradesBody"></tbody>
       </table>
@@ -921,6 +921,10 @@
     var blank = function (v) { return (v === "" || v == null) ? "—" : v; };
     list.forEach(function (t) {
       var c = compute(t);
+      var tnote = [t.strategy, t.notes].filter(Boolean).join(" · ");
+      var hasQty = !(t.qty === "" || t.qty == null);
+      var soldVal = (!c.open && t.manualPnl == null && hasQty && t.exit !== "" && t.exit != null)
+          ? money(Number(t.exit) * Number(t.qty)) : "—";   // shares sold × exit price = sale value
       body += '<tr>' +
         '<td class="l">' + fmtDay(t.openDate) + '</td>' +
         '<td class="l"><input class="tkr-input" type="text" data-tkr="' + t.id +
@@ -928,11 +932,16 @@
         '<td class="num">' + (c.open
               ? '<span class="pnl-pill flat">—</span>'
               : '<span class="pnl-pill ' + cls(c.pnl) + '">' + signed(c.pnl) + '</span>') + '</td>' +
-        '<td class="l t-note">' + esc([t.strategy, t.notes].filter(Boolean).join(" · ")) + '</td>' +
+        '<td class="l"><div class="note-cell">' +
+          '<input class="note-input" type="text" data-tnote="' + t.id + '" value="' + esc(tnote) + '" placeholder="＋ note" spellcheck="false">' +
+          '<button type="button" class="note-exp" data-texp="' + t.id + '" title="Open note to read / edit">⤢</button>' +
+        '</div></td>' +
+        '<td class="num">' + (hasQty ? esc(t.qty) : "—") + '</td>' +
+        '<td class="num">' + soldVal + '</td>' +
         '<td><button class="del" title="Delete" data-id="' + t.id + '">✕</button></td>' +
       '</tr>';
     });
-    if (!list.length) body = '<tr><td colspan="5" class="empty">No trades' + (yr === "all" ? "" : " in " + yr) + ' yet.</td></tr>';
+    if (!list.length) body = '<tr><td colspan="7" class="empty">No trades' + (yr === "all" ? "" : " in " + yr) + ' yet.</td></tr>';
     document.getElementById("tradesBody").innerHTML = body;
     document.getElementById("tradeCount").textContent = list.length + " total";
     Array.prototype.forEach.call(document.querySelectorAll(".del"), function (b) {
@@ -943,6 +952,15 @@
         var tr = trades.filter(function (z) { return z.id === inp.getAttribute("data-tkr"); })[0];
         if (tr) { tr.tickers = parseTickers(inp.value); persist(); render(); }
       });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tnote]"), function (inp) {
+      inp.addEventListener("change", function () {
+        var tr = trades.filter(function (z) { return z.id === inp.getAttribute("data-tnote"); })[0];
+        if (tr) { tr.notes = inp.value; tr.strategy = ""; persist(); render(); }   // one combined note going forward
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-texp]"), function (b) {
+      b.addEventListener("click", function () { openNoteModal(b.getAttribute("data-texp")); });
     });
   }
 
@@ -1032,23 +1050,27 @@
   });
 
   // ---------- note reader/editor popup (open a holding's full note to read or edit) ----------
-  var noteModalId = null;
+  var noteModalRef = null;   // { obj: <holding|trade>, isTrade: bool }
   function openNoteModal(id) {
     var h = holdings.filter(function (z) { return z.id === id; })[0];
-    if (!h) return;
-    noteModalId = id;
-    document.getElementById("noteModalTitle").textContent = (h.symbol || "Position") + " · note";
-    document.getElementById("noteModalText").value = h.note || "";
+    var t = h ? null : trades.filter(function (z) { return z.id === id; })[0];
+    var obj = h || t;
+    if (!obj) return;
+    noteModalRef = { obj: obj, isTrade: !!t };
+    document.getElementById("noteModalTitle").textContent = (obj.symbol || (t ? "Trade" : "Position")) + " · note";
+    document.getElementById("noteModalText").value = t ? [t.strategy, t.notes].filter(Boolean).join(" · ") : (obj.note || "");
     document.getElementById("noteModal").hidden = false;
     document.getElementById("noteModalText").focus();
   }
   function closeNoteModal(save) {
-    if (save && noteModalId) {
-      var h = holdings.filter(function (z) { return z.id === noteModalId; })[0];
-      if (h) { h.note = document.getElementById("noteModalText").value; persistH(); render(); }
+    if (save && noteModalRef) {
+      var v = document.getElementById("noteModalText").value;
+      if (noteModalRef.isTrade) { noteModalRef.obj.notes = v; noteModalRef.obj.strategy = ""; persist(); }
+      else { noteModalRef.obj.note = v; persistH(); }
+      render();
     }
     document.getElementById("noteModal").hidden = true;
-    noteModalId = null;
+    noteModalRef = null;
   }
   document.getElementById("noteModalSave").addEventListener("click", function () { closeNoteModal(true); });
   document.getElementById("noteModalClose").addEventListener("click", function () { closeNoteModal(false); });
