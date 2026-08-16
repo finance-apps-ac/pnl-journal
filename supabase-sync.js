@@ -40,6 +40,7 @@
   // the cloud overwrite the edit. hasUnpushed() === REV > PUSHED. (NOT app data keys.)
   var REV_KEY = "__sync_rev_" + cfg.app;
   var PUSHED_KEY = "__sync_pushedrev_" + cfg.app;
+  var OWNER_KEY = "__sync_owner_" + cfg.app;   // which account the local data belongs to (isolation)
 
   var sb = null;
   var currentUser = null;
@@ -167,6 +168,8 @@
   function origGet(k) { return window.localStorage.getItem(k); }
   function getSeen() { return origGet(SEEN_KEY); }
   function setSeen(ts) { if (ts) origSet(SEEN_KEY, String(ts)); }
+  function getOwner() { return origGet(OWNER_KEY); }
+  function setOwner(id) { if (id) origSet(OWNER_KEY, String(id)); }
 
   function applyCloud(data, updatedAt) {
     applyingRemote = true;
@@ -184,7 +187,7 @@
   function clearLocal() {
     applyingRemote = true;
     KEYS.forEach(function (k) { origRemove(k); });
-    origRemove(SEEN_KEY); origRemove(REV_KEY); origRemove(PUSHED_KEY);  // reset all sync markers for the next person
+    origRemove(SEEN_KEY); origRemove(REV_KEY); origRemove(PUSHED_KEY); origRemove(OWNER_KEY);  // reset all sync markers for the next person
     applyingRemote = false;
   }
 
@@ -319,14 +322,34 @@
     loggedInOnce = true;
     currentUser = user;
     showLoading();
+    var finish = function (row, note) {
+      subscribeRealtime();
+      ready = true;
+      hideOverlay();
+      showBadge(user.email);
+      diag(note || "after login", row);
+    };
     pull().then(function (row) {
-      return reconcile(row).then(function () {
-        subscribeRealtime();
-        ready = true;
-        hideOverlay();
-        showBadge(user.email);
-        diag("after login", row);
-      });
+      // ---- Account isolation ----
+      // The login overlay blocks data entry while signed out, so ANY local data present at login was
+      // left by a PREVIOUS session/user. Only trust it when it's tagged as THIS user's — otherwise
+      // never let it seed a new account or overwrite another one (that would leak one person's data
+      // into another). This is the fix for "a fresh signup shows the previous account's data".
+      var owner = getOwner();
+      var localHasData = hasUnpushed() || KEYS.some(function (k) { return origGet(k) !== null; });
+      if ((owner && owner !== user.id) || (!owner && !row && localHasData)) {
+        // Data from a DIFFERENT account, OR unidentified leftover about to seed a brand-new empty
+        // account → discard it and load only THIS user's cloud data (clean start if none).
+        clearLocal();
+        setOwner(user.id);
+        if (row) { applyCloud(row.data, row.updated_at); rerender(); }
+        finish(row, "after login (isolated / clean start)");
+        return;
+      }
+      // Same user as the data on this device (or legacy data with an existing cloud row) →
+      // normal reconcile, which preserves this device's not-yet-pushed edits.
+      setOwner(user.id);
+      return reconcile(row).then(function () { finish(row); });
     }).catch(function (e) {
       ready = true; hideOverlay(); showBadge(user.email);
       dbgShow("login pull FAILED: " + (e && e.message));
