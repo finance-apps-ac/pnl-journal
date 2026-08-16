@@ -391,6 +391,34 @@
     }
   }
 
+  // Permanently delete the account + all its data (App Store / Play Store requirement).
+  // Two confirmations because it's irreversible. The actual delete happens server-side in the
+  // "delete-account" Edge Function (only the service role can remove an auth user); functions.invoke
+  // sends the user's own access token, so they can only ever delete themselves.
+  function deleteAccount() {
+    if (!sb || !currentUser) return;
+    if (!window.confirm(
+      "Permanently delete your account?\n\nThis erases your login and ALL of your " + (cfg.name || "app") +
+      " data on every device. This cannot be undone."
+    )) return;
+    if (!window.confirm("Are you absolutely sure? There is no way to recover your data afterwards.")) return;
+
+    var btn = document.getElementById("sync-delete");
+    if (btn) { btn.disabled = true; btn.textContent = "Deleting…"; }
+
+    sb.functions.invoke("delete-account", { body: {} }).then(function (r) {
+      if (r.error) throw r.error;
+      clearLocal();                     // wipe this device's copy
+      return sb.auth.signOut();
+    }).then(function () {
+      alert("Your account and all your data have been permanently deleted.");
+      location.reload();
+    }).catch(function () {
+      if (btn) { btn.disabled = false; btn.textContent = "Delete account"; }
+      alert("Sorry — we couldn't delete your account just now. Please try again, or email support@financelog.app.");
+    });
+  }
+
   /* ---------------- overlay / DOM ---------------- */
   function injectStyles() {
     var css = ""
@@ -428,6 +456,9 @@
       + "padding:7px 12px;font:600 12px -apple-system,sans-serif;backdrop-filter:blur(8px);}"
       + "@media (prefers-color-scheme: light){#sync-badge{background:rgba(255,255,255,.9);color:#0F1A2E;box-shadow:0 4px 14px rgba(16,24,40,.12);}}"
       + "#sync-badge button{border:0;background:none;color:#2FD3E1;font:600 12px -apple-system,sans-serif;cursor:pointer;padding:0;}"
+      + "#sync-badge button:disabled{opacity:.5;cursor:default;}"
+      + "#sync-delete{color:#8494ac !important;margin-left:2px;}"
+      + "#sync-delete:hover{color:#FF5C72 !important;}"
       + "#sync-dot{width:7px;height:7px;border-radius:50%;background:#2FE79B;}";
     var s = document.createElement("style"); s.textContent = css; document.head.appendChild(s);
   }
@@ -591,9 +622,12 @@
     if (document.getElementById("sync-badge")) return;
     var b = document.createElement("div");
     b.id = "sync-badge";
-    b.innerHTML = '<span id="sync-dot"></span><span>' + esc(email) + '</span><button id="sync-out">Log out</button>';
+    b.innerHTML = '<span id="sync-dot"></span><span>' + esc(email) + '</span>' +
+      '<button id="sync-out">Log out</button>' +
+      '<button id="sync-delete" title="Permanently delete your account and data">Delete account</button>';
     document.body.appendChild(b);
     document.getElementById("sync-out").onclick = logout;
+    document.getElementById("sync-delete").onclick = deleteAccount;
     updatePendingBadge();
   }
   // Visible "• Pending" chip whenever this device holds edits not yet confirmed in the cloud.
