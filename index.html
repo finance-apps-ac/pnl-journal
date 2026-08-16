@@ -220,6 +220,11 @@
                 text-align: right; color: var(--ink); }
   .cost-input:focus { border-color: var(--accent); outline: none; }
   .cost-input::placeholder { color: var(--ink-faint); }
+  /* $ prefix for Value inputs: input is right-aligned, so the symbol sits at the left edge and reads as currency */
+  .val-wrap { position: relative; display: inline-block; }
+  .val-wrap .cur { position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+                   color: var(--ink-faint); font-size: 12.5px; font-family: var(--font-mono); pointer-events: none; }
+  .val-wrap .cost-input.has-cur { padding-left: 17px; }
   .total-row td { font-weight: 700; border-top: 2px solid var(--border); border-bottom: none; }
   .t-date { font-variant-numeric: tabular-nums; }
   .t-date .d { font-weight: 700; color: var(--ink); text-transform: uppercase; }
@@ -939,8 +944,10 @@
         '</div></td>' +
         '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-tqty="' + t.id +
             '" value="' + (hasQty ? esc(t.qty) : "") + '" placeholder="—"></td>' +
-        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-tvalue="' + t.id +
-            '" value="' + (valDisp === "" || valDisp == null ? "" : esc(valDisp)) + '" placeholder="—"></td>' +
+        '<td class="num"><span class="val-wrap">' +
+            (valDisp === "" || valDisp == null ? "" : '<span class="cur">$</span>') +
+            '<input class="cost-input' + (valDisp === "" || valDisp == null ? "" : " has-cur") + '" type="number" step="any" min="0" data-tvalue="' + t.id +
+            '" value="' + (valDisp === "" || valDisp == null ? "" : esc(valDisp)) + '" placeholder="—"></span></td>' +
         '<td><button class="del" title="Delete" data-id="' + t.id + '">✕</button></td>' +
       '</tr>';
     });
