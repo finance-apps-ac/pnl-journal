@@ -240,6 +240,24 @@
   .note-input:focus { border-color: var(--accent); outline: none; }
   .note-input::placeholder { color: var(--ink-faint); }
   .t-note { color: var(--ink); font-size: 12px; max-width: 260px; }
+  .note-cell { display: flex; align-items: center; gap: 4px; }
+  .note-exp { flex: none; background: none; border: 0; color: var(--ink-faint); cursor: pointer;
+              font-size: 14px; line-height: 1; padding: 4px 3px; border-radius: 5px; }
+  .note-exp:hover { color: var(--accent); background: var(--surface-2); }
+  .note-modal { position: fixed; inset: 0; z-index: 2147482900; background: rgba(3,7,16,.6);
+                display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .note-modal[hidden] { display: none; }
+  .note-modal-box { width: 100%; max-width: 460px; background: var(--surface); border: 1px solid var(--border);
+                    border-radius: 14px; padding: 16px; box-shadow: 0 24px 60px rgba(0,0,0,.55); }
+  .note-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  #noteModalTitle { font-weight: 700; color: var(--ink); font-size: 15px; }
+  .note-modal-x { background: none; border: 0; color: var(--ink-faint); cursor: pointer; font-size: 16px; padding: 2px 6px; }
+  .note-modal-x:hover { color: var(--ink); }
+  #noteModalText { width: 100%; box-sizing: border-box; min-height: 140px; resize: vertical;
+                   background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+                   padding: 10px 12px; color: var(--ink); font-size: 14px; line-height: 1.5; }
+  #noteModalText:focus { border-color: var(--accent); outline: none; }
+  .note-modal-foot { display: flex; justify-content: flex-end; margin-top: 12px; }
   .contrib-donut { max-width: 250px; margin: 10px auto 8px; }
   .contrib-donut svg { width: 100%; height: auto; display: block; }
   .donut-total { fill: var(--ink); font-family: var(--font-mono); font-size: 27px; font-weight: 700; }
@@ -407,6 +425,18 @@
   </section>
 
   <footer class="foot">Private to you — trades are saved in this browser only, never uploaded.</footer>
+
+  <!-- Note reader/editor popup (opened from the ⤢ button on a holding's note) -->
+  <div id="noteModal" class="note-modal" hidden>
+    <div class="note-modal-box">
+      <div class="note-modal-head">
+        <span id="noteModalTitle">Note</span>
+        <button type="button" id="noteModalClose" class="note-modal-x" title="Close">✕</button>
+      </div>
+      <textarea id="noteModalText" placeholder="Notes for planning this position…"></textarea>
+      <div class="note-modal-foot"><button type="button" id="noteModalSave" class="btn">Save note</button></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -665,7 +695,10 @@
           '" value="' + (x.cost === "" || x.cost == null ? "" : esc(x.cost)) + '" placeholder="—"></td>' +
         '<td class="num">' + (basis != null ? money(basis) : "—") + '</td>' +
         '<td class="num ' + (unreal == null ? "" : cls(unreal)) + '">' + (unreal == null ? "—" : signed(unreal)) + '</td>' +
-        '<td class="l"><input class="note-input" type="text" data-pnote="' + x.id + '" value="' + esc(x.note || "") + '" placeholder="＋ note" spellcheck="false"></td>' +
+        '<td class="l"><div class="note-cell">' +
+          '<input class="note-input" type="text" data-pnote="' + x.id + '" value="' + esc(x.note || "") + '" placeholder="＋ note" spellcheck="false">' +
+          '<button type="button" class="note-exp" data-nexp="' + x.id + '" title="Open note to read / edit">⤢</button>' +
+        '</div></td>' +
         '<td><button class="del" title="Remove" data-pid="' + x.id + '">✕</button></td>' +
       '</tr>';
     });
@@ -712,6 +745,9 @@
       inp.addEventListener("change", function () {
         updatePos(inp.getAttribute("data-pnote"), "note", inp.value);
       });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-nexp]"), function (b) {
+      b.addEventListener("click", function () { openNoteModal(b.getAttribute("data-nexp")); });
     });
     Array.prototype.forEach.call(document.querySelectorAll("[data-pid]"), function (b) {
       b.addEventListener("click", function () {
@@ -994,6 +1030,30 @@
     }
     persistH(); renderHoldings(); this.reset();
   });
+
+  // ---------- note reader/editor popup (open a holding's full note to read or edit) ----------
+  var noteModalId = null;
+  function openNoteModal(id) {
+    var h = holdings.filter(function (z) { return z.id === id; })[0];
+    if (!h) return;
+    noteModalId = id;
+    document.getElementById("noteModalTitle").textContent = (h.symbol || "Position") + " · note";
+    document.getElementById("noteModalText").value = h.note || "";
+    document.getElementById("noteModal").hidden = false;
+    document.getElementById("noteModalText").focus();
+  }
+  function closeNoteModal(save) {
+    if (save && noteModalId) {
+      var h = holdings.filter(function (z) { return z.id === noteModalId; })[0];
+      if (h) { h.note = document.getElementById("noteModalText").value; persistH(); render(); }
+    }
+    document.getElementById("noteModal").hidden = true;
+    noteModalId = null;
+  }
+  document.getElementById("noteModalSave").addEventListener("click", function () { closeNoteModal(true); });
+  document.getElementById("noteModalClose").addEventListener("click", function () { closeNoteModal(false); });
+  document.getElementById("noteModal").addEventListener("click", function (e) { if (e.target.id === "noteModal") closeNoteModal(false); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !document.getElementById("noteModal").hidden) closeNoteModal(false); });
 
   // ---------- live prices (updates each holding's Value = live price × shares) ----------
   function setPriceNote(t) { var n = document.getElementById("priceNote"); if (n) n.textContent = t; }
