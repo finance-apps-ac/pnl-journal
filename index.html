@@ -221,13 +221,22 @@
   .cost-input:focus { border-color: var(--accent); outline: none; }
   .cost-input::placeholder { color: var(--ink-faint); }
   /* $ prefix for Value inputs: input is right-aligned, so the symbol sits at the left edge and reads as currency */
-  /* $ glued to the number, unit right-aligned (matches the AVG WIN / Total look). The input hugs its
-     content (inline width set at render) so the $→number gap is identical on every row. */
-  .val-wrap { display: inline-flex; align-items: center; justify-content: flex-end; width: 92px; vertical-align: middle; }
-  .val-wrap .cur { color: var(--ink); font-size: 12.5px; font-family: var(--font-mono); margin-right: 1px; pointer-events: none; flex: 0 0 auto; }
-  .val-wrap .cost-input { text-align: right; }
-  .val-wrap.has .cost-input { width: auto; min-width: 20px; max-width: 74px; padding-left: 3px; }
-  .val-wrap:not(.has) .cost-input { width: 100%; }
+  /* The PILL is the wrapper (fixed width, bordered). Inside it, "$" + the number sit together,
+     right-aligned as one unit — so the $→number gap is identical on every row and the whole thing
+     lines up on the right like the AVG WIN / Total columns. The <input> is transparent inside the pill. */
+  .val-wrap { display: inline-flex; align-items: center; justify-content: flex-end; gap: 2px;
+              width: 92px; box-sizing: border-box; padding: 5px 8px; vertical-align: middle;
+              background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .val-wrap:focus-within { border-color: var(--accent); }
+  .val-wrap .cur { color: var(--ink); font-size: 12.5px; font-family: var(--font-mono); flex: 0 0 auto; pointer-events: none; }
+  .val-wrap .cost-input { border: none; background: transparent; padding: 0; margin: 0; height: auto;
+                          font-size: 12.5px; font-family: var(--font-mono); color: var(--ink); text-align: right;
+                          -moz-appearance: textfield; appearance: textfield; }
+  /* Hide the native number spinners — they'd steal width from the content-sized input and push the number off-edge. */
+  .val-wrap .cost-input::-webkit-outer-spin-button,
+  .val-wrap .cost-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .val-wrap.has .cost-input { flex: 0 1 auto; min-width: 0; }
+  .val-wrap:not(.has) .cost-input { flex: 1 1 auto; width: 100%; }
   .total-row td { font-weight: 700; border-top: 2px solid var(--border); border-bottom: none; }
   .t-date { font-variant-numeric: tabular-nums; }
   .t-date .d { font-weight: 700; color: var(--ink); text-transform: uppercase; }
@@ -592,9 +601,9 @@
   function moneyCell(attr, id, raw) {
     var has = !(raw === "" || raw == null);
     var str = has ? String(raw) : "";
-    // Size the input to its content (clamped by CSS max-width) so the $ hugs the number identically per row.
-    var chLen = Math.min(Math.max(str.length, 3), 10);
-    var wStyle = has ? ' style="width:calc(' + chLen + 'ch + 12px)"' : '';
+    // Size the input to its content so the $ hugs the number identically per row (pill clips any overflow).
+    var chLen = Math.min(Math.max(str.length, 1), 10);
+    var wStyle = has ? ' style="width:calc(' + chLen + 'ch + 3px)"' : '';
     return '<td class="num"><span class="val-wrap' + (has ? ' has' : '') + '">' +
       (has ? '<span class="cur">$</span>' : '') +
       '<input class="cost-input"' + wStyle + ' type="number" step="any" min="0" ' +
