@@ -235,6 +235,11 @@
                text-transform: uppercase; letter-spacing: .5px; color: var(--violet); }
   .tkr-input:focus { border-color: var(--accent); outline: none; }
   .tkr-input::placeholder { color: var(--ink-faint); text-transform: none; letter-spacing: 0; }
+  .note-input { width: 150px; max-width: 42vw; background: var(--surface-2); border: 1px solid var(--border);
+                border-radius: 6px; padding: 5px 8px; font-size: 12.5px; color: var(--ink); text-align: left; }
+  .note-input:focus { border-color: var(--accent); outline: none; }
+  .note-input::placeholder { color: var(--ink-faint); }
+  .t-note { color: var(--ink); font-size: 12px; max-width: 260px; }
   .contrib-donut { max-width: 250px; margin: 10px auto 8px; }
   .contrib-donut svg { width: 100%; height: auto; display: block; }
   .donut-total { fill: var(--ink); font-family: var(--font-mono); font-size: 27px; font-weight: 700; }
@@ -322,7 +327,7 @@
     <div class="table-wrap">
       <table id="holdingsTable">
         <thead><tr>
-          <th class="l">Symbol</th><th>Shares</th><th>Value</th><th>Avg cost</th><th>Cost basis</th><th>Unreal.&nbsp;P&amp;L</th><th></th>
+          <th class="l">Symbol</th><th>Shares</th><th>Value</th><th>Avg cost</th><th>Cost basis</th><th>Unreal.&nbsp;P&amp;L</th><th class="l">Notes</th><th></th>
         </tr></thead>
         <tbody id="holdingsBody"></tbody>
       </table>
@@ -367,7 +372,7 @@
     <div class="table-wrap">
       <table id="tradesTable">
         <thead><tr>
-          <th class="l">Date</th><th class="l">Tickers</th><th>P&amp;L</th><th></th>
+          <th class="l">Date</th><th class="l">Tickers</th><th>P&amp;L</th><th class="l">Notes</th><th></th>
         </tr></thead>
         <tbody id="tradesBody"></tbody>
       </table>
@@ -442,14 +447,14 @@
   // Buy/sell a symbol's shares in the holdings list. Positive delta = buy (average cost blends
   // when the whole position has a coherent cost); negative = sell (subtracts). A position that
   // hits zero shares is removed. Value tracks cost basis until a live-price refresh overwrites it.
-  function upsertHolding(sym, deltaShares, costPerShare) {
+  function upsertHolding(sym, deltaShares, costPerShare, note) {
     sym = String(sym || "").trim().toUpperCase();
     var h = holdings.filter(function (z) { return String(z.symbol || "").trim().toUpperCase() === sym; })[0];
     if (deltaShares > 0) {
       var cps = (costPerShare == null || costPerShare === "" || isNaN(Number(costPerShare))) ? null : Number(costPerShare);
       if (!h) {
         holdings.push({ id: uid(), symbol: sym, shares: deltaShares,
-          value: cps != null ? cps * deltaShares : 0, cost: cps != null ? cps : "" });
+          value: cps != null ? cps * deltaShares : 0, cost: cps != null ? cps : "", note: note || "" });
       } else {
         var oldSh = Number(h.shares) || 0;
         var oldCost = (h.cost === "" || h.cost == null) ? null : Number(h.cost);
@@ -461,6 +466,7 @@
         }
         h.value = (Number(h.value) || 0) + (cps != null ? cps * deltaShares : 0);
         h.shares = newSh;
+        if (note) h.note = note;   // latest buy note becomes the position's note (still editable)
       }
     } else if (deltaShares < 0 && h) {
       var oldSh2 = Number(h.shares) || 0;
@@ -639,7 +645,7 @@
     // Current positions live entirely in the holdings list (one editable row per stock). Buys
     // post in here, sells subtract from here — so there's never a duplicate or a non-editable line.
     var positions = holdings.map(function (h) {
-      return { id: h.id, symbol: h.symbol, shares: h.shares, value: h.value, cost: h.cost };
+      return { id: h.id, symbol: h.symbol, shares: h.shares, value: h.value, cost: h.cost, note: h.note };
     });
 
     positions.forEach(function (x) {
@@ -659,17 +665,18 @@
           '" value="' + (x.cost === "" || x.cost == null ? "" : esc(x.cost)) + '" placeholder="—"></td>' +
         '<td class="num">' + (basis != null ? money(basis) : "—") + '</td>' +
         '<td class="num ' + (unreal == null ? "" : cls(unreal)) + '">' + (unreal == null ? "—" : signed(unreal)) + '</td>' +
+        '<td class="l"><input class="note-input" type="text" data-pnote="' + x.id + '" value="' + esc(x.note || "") + '" placeholder="＋ note" spellcheck="false"></td>' +
         '<td><button class="del" title="Remove" data-pid="' + x.id + '">✕</button></td>' +
       '</tr>';
     });
     if (!positions.length) {
-      body = '<tr><td colspan="7" class="empty">No holdings yet — add a trade (leave Exit blank) or a holding below.</td></tr>';
+      body = '<tr><td colspan="8" class="empty">No holdings yet — add a trade (leave Exit blank) or a holding below.</td></tr>';
     } else {
       body += '<tr class="total-row"><td class="l">Total</td><td></td>' +
         '<td class="num">' + money(totVal) + '</td>' +
         '<td></td><td></td>' +
         '<td class="num ' + (hasUnreal ? cls(totUnreal) : "") + '">' + (hasUnreal ? signed(totUnreal) : "—") + '</td>' +
-        '<td></td></tr>';
+        '<td></td><td></td></tr>';
     }
     document.getElementById("holdingsBody").innerHTML = body;
     document.getElementById("holdingsTotal").textContent = money(totVal) + " market value";
@@ -699,6 +706,11 @@
     Array.prototype.forEach.call(document.querySelectorAll("[data-pcost]"), function (inp) {
       inp.addEventListener("change", function () {
         updatePos(inp.getAttribute("data-pcost"), "cost", inp.value === "" ? "" : parseFloat(inp.value));
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-pnote]"), function (inp) {
+      inp.addEventListener("change", function () {
+        updatePos(inp.getAttribute("data-pnote"), "note", inp.value);
       });
     });
     Array.prototype.forEach.call(document.querySelectorAll("[data-pid]"), function (b) {
@@ -880,10 +892,11 @@
         '<td class="num">' + (c.open
               ? '<span class="pnl-pill flat">—</span>'
               : '<span class="pnl-pill ' + cls(c.pnl) + '">' + signed(c.pnl) + '</span>') + '</td>' +
+        '<td class="l t-note">' + esc([t.strategy, t.notes].filter(Boolean).join(" · ")) + '</td>' +
         '<td><button class="del" title="Delete" data-id="' + t.id + '">✕</button></td>' +
       '</tr>';
     });
-    if (!list.length) body = '<tr><td colspan="4" class="empty">No trades' + (yr === "all" ? "" : " in " + yr) + ' yet.</td></tr>';
+    if (!list.length) body = '<tr><td colspan="5" class="empty">No trades' + (yr === "all" ? "" : " in " + yr) + ' yet.</td></tr>';
     document.getElementById("tradesBody").innerHTML = body;
     document.getElementById("tradeCount").textContent = list.length + " total";
     Array.prototype.forEach.call(document.querySelectorAll(".del"), function (b) {
@@ -936,7 +949,7 @@
       persist();
     } else {
       // A BUY: post straight into the holding — shares add up, average cost blends. No open row.
-      upsertHolding(sym, qty, entry);
+      upsertHolding(sym, qty, entry, [strategy, notes].filter(Boolean).join(" · "));
     }
     render();
     this.reset();
