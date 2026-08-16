@@ -923,8 +923,9 @@
       var c = compute(t);
       var tnote = [t.strategy, t.notes].filter(Boolean).join(" · ");
       var hasQty = !(t.qty === "" || t.qty == null);
-      var soldVal = (!c.open && t.manualPnl == null && hasQty && t.exit !== "" && t.exit != null)
-          ? money(Number(t.exit) * Number(t.qty)) : "—";   // shares sold × exit price = sale value
+      // Value = an explicit sale value if set, else auto-derived from a closed trade's exit × shares.
+      var valDisp = (t.saleValue !== "" && t.saleValue != null) ? t.saleValue
+          : (t.manualPnl == null && hasQty && t.exit !== "" && t.exit != null ? Math.round(Number(t.exit) * Number(t.qty) * 100) / 100 : "");
       body += '<tr>' +
         '<td class="l">' + fmtDay(t.openDate) + '</td>' +
         '<td class="l"><input class="tkr-input" type="text" data-tkr="' + t.id +
@@ -936,10 +937,10 @@
           '<input class="note-input" type="text" data-tnote="' + t.id + '" value="' + esc(tnote) + '" placeholder="＋ note" spellcheck="false">' +
           '<button type="button" class="note-exp" data-texp="' + t.id + '" title="Open note to read / edit">⤢</button>' +
         '</div></td>' +
-        '<td class="num">' + (c.manual ? "—" :
-          '<input class="cost-input" type="number" step="any" min="0" data-tqty="' + t.id +
-            '" value="' + (hasQty ? esc(t.qty) : "") + '" placeholder="—">') + '</td>' +
-        '<td class="num">' + soldVal + '</td>' +
+        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-tqty="' + t.id +
+            '" value="' + (hasQty ? esc(t.qty) : "") + '" placeholder="—"></td>' +
+        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-tvalue="' + t.id +
+            '" value="' + (valDisp === "" || valDisp == null ? "" : esc(valDisp)) + '" placeholder="—"></td>' +
         '<td><button class="del" title="Delete" data-id="' + t.id + '">✕</button></td>' +
       '</tr>';
     });
@@ -967,7 +968,18 @@
     Array.prototype.forEach.call(document.querySelectorAll("[data-tqty]"), function (inp) {
       inp.addEventListener("change", function () {
         var tr = trades.filter(function (z) { return z.id === inp.getAttribute("data-tqty"); })[0];
-        if (tr) { tr.qty = inp.value === "" ? "" : parseFloat(inp.value); persist(); render(); }   // Value & P&L recompute
+        if (!tr) return;
+        tr.qty = inp.value === "" ? "" : parseFloat(inp.value);
+        // Closed trade with an exit price → auto-fill the sale value (shares × exit). P&L also recomputes.
+        if (tr.manualPnl == null && tr.exit !== "" && tr.exit != null && tr.qty !== "")
+          tr.saleValue = Math.round(Number(tr.exit) * Number(tr.qty) * 100) / 100;
+        persist(); render();
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tvalue]"), function (inp) {
+      inp.addEventListener("change", function () {
+        var tr = trades.filter(function (z) { return z.id === inp.getAttribute("data-tvalue"); })[0];
+        if (tr) { tr.saleValue = inp.value === "" ? "" : parseFloat(inp.value); persist(); render(); }
       });
     });
   }
