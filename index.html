@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- Content-Security-Policy: lock the app to its own origin + Supabase + the one CDN it needs.
+     Blocks injected scripts/exfiltration to any other host (defense-in-depth on top of RLS + esc). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data:; font-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -30,7 +33,7 @@
 <body>
 <!-- Cross-device sync: login + cloud storage. Must load before the app script. -->
 <script>window.SYNC_CONFIG = { app: "pnl", name: "P&L", keys: ["ledger.trades.v1", "ledger.holdings.v1", "ledger.contrib.v1", "ledger.years.v1"] };</script>
-<script src="supabase-sync.js?v=19"></script>
+<script src="supabase-sync.js?v=20"></script>
 <style>
   /* ---------- reset (self-sufficient when opened as a local file) ---------- */
   *, *::before, *::after { box-sizing: border-box; }
@@ -594,8 +597,8 @@
   function money(v, dp) { return (dp === 2 ? usd2 : usd).format(v || 0); }
   function signed(v) { return (v > 0 ? "+" : "") + money(v); }
   function cls(v) { return v > 0 ? "pos" : (v < 0 ? "neg" : ""); }
-  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
-    return ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" })[c]; }); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"'/]/g, function (c) {
+    return ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;","/":"&#47;" })[c]; }); }
   // A right-aligned money <input> cell with a leading "$" (shown only when a value is present,
   // so empty cells stay clean). Used for every editable dollar amount — holdings Value/Cost, trade Value.
   function moneyCell(attr, id, raw) {

@@ -681,5 +681,5 @@
     s.src = src; s.onload = ok; s.onerror = err;
     document.head.appendChild(s);
   }
-  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); }
+  function esc(s) { return String(s).replace(/[&<>"'/]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;", "/": "&#47;" })[c]; }); }
 })();
