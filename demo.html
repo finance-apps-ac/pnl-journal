@@ -2,6 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- Content-Security-Policy: lock the app to its own origin + Supabase + the one CDN it needs.
+     Blocks injected scripts/exfiltration to any other host (defense-in-depth on top of RLS + esc). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data:; font-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>P&amp;L — Trading Journal</title>
 <script>
@@ -25,6 +31,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 </head>
 <body>
+<!-- Cross-device sync: login + cloud storage. Must load before the app script. -->
 <style>
   /* ---------- reset (self-sufficient when opened as a local file) ---------- */
   *, *::before, *::after { box-sizing: border-box; }
@@ -191,6 +198,31 @@
   .import { position: relative; overflow: hidden; }
   .import input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
   .table-wrap { overflow-x: auto; margin-top: 12px; }
+  /* All-trades timeframe tabs (1W/1M/3M/1Y/All) + Show-all toggle */
+  .tf-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .tf-chip { background: var(--surface-2); border: 1px solid var(--border); color: var(--ink-soft);
+             border-radius: 999px; padding: 5px 13px; font-size: 12px; font-weight: 700; cursor: pointer; letter-spacing: .3px; }
+  .tf-chip:hover { border-color: var(--accent); color: var(--ink); }
+  .tf-chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .show-all-btn { display: block; width: 100%; margin-top: 12px; background: none; border: none;
+                  color: var(--accent); font-weight: 700; font-size: 13px; cursor: pointer; padding: 9px; letter-spacing: .3px; }
+  .show-all-btn:hover { text-decoration: underline; }
+  /* Gains & Losses mini area chart above the trades list (reacts to the timeframe tabs). */
+  .trades-chart { margin-top: 14px; position: relative; padding-right: 50px; }
+  .trades-chart:empty { display: none; }
+  .trades-chart svg { display: block; width: 100%; height: auto; }
+  /* Lines use non-scaling-stroke (set inline) so they stay a crisp 2px at any width — matching the
+     equity curve's weight regardless of how wide the card is. */
+  .gl-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .gl-gain { stroke: var(--gain); }
+  .gl-loss { stroke: var(--violet); }
+  .gl-area-gain { fill: var(--gain); opacity: .14; }   /* same fill transparency as .eq-area */
+  .gl-area-loss { fill: var(--violet); opacity: .14; }
+  .gl-dot { fill: var(--gain); }                       /* always green — stay positive */
+  /* Right-side $ labels rendered as fixed-size HTML (same 10px mono as .axis-text) so they never scale up. */
+  .gl-labels { position: absolute; top: 0; right: 0; width: 50px; height: 100%; pointer-events: none; }
+  .gl-labels span { position: absolute; right: 4px; transform: translateY(-50%); white-space: nowrap;
+                    font: 10px/1 var(--font-mono); color: var(--ink-faint); }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { text-align: right; font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px;
        color: var(--accent); font-weight: 600; padding: 8px 11px; border-bottom: 1px solid var(--border); white-space: nowrap; }
@@ -214,6 +246,23 @@
                 text-align: right; color: var(--ink); }
   .cost-input:focus { border-color: var(--accent); outline: none; }
   .cost-input::placeholder { color: var(--ink-faint); }
+  /* $ prefix for Value inputs: input is right-aligned, so the symbol sits at the left edge and reads as currency */
+  /* The PILL is the wrapper (fixed width, bordered). Inside it, "$" + the number sit together,
+     right-aligned as one unit — so the $→number gap is identical on every row and the whole thing
+     lines up on the right like the AVG WIN / Total columns. The <input> is transparent inside the pill. */
+  .val-wrap { display: inline-flex; align-items: center; justify-content: flex-end; gap: 2px;
+              width: 92px; box-sizing: border-box; padding: 5px 8px; vertical-align: middle;
+              background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .val-wrap:focus-within { border-color: var(--accent); }
+  .val-wrap .cur { color: var(--ink); font-size: 12.5px; font-family: var(--font-mono); flex: 0 0 auto; pointer-events: none; }
+  .val-wrap .cost-input { border: none; background: transparent; padding: 0; margin: 0; height: auto;
+                          font-size: 12.5px; font-family: var(--font-mono); color: var(--ink); text-align: right;
+                          -moz-appearance: textfield; appearance: textfield; }
+  /* Hide the native number spinners — they'd steal width from the content-sized input and push the number off-edge. */
+  .val-wrap .cost-input::-webkit-outer-spin-button,
+  .val-wrap .cost-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .val-wrap.has .cost-input { flex: 0 1 auto; min-width: 0; }
+  .val-wrap:not(.has) .cost-input { flex: 1 1 auto; width: 100%; }
   .total-row td { font-weight: 700; border-top: 2px solid var(--border); border-bottom: none; }
   .t-date { font-variant-numeric: tabular-nums; }
   .t-date .d { font-weight: 700; color: var(--ink); text-transform: uppercase; }
@@ -229,6 +278,29 @@
                text-transform: uppercase; letter-spacing: .5px; color: var(--violet); }
   .tkr-input:focus { border-color: var(--accent); outline: none; }
   .tkr-input::placeholder { color: var(--ink-faint); text-transform: none; letter-spacing: 0; }
+  .note-input { width: 150px; max-width: 42vw; background: var(--surface-2); border: 1px solid var(--border);
+                border-radius: 6px; padding: 5px 8px; font-size: 12.5px; color: var(--ink); text-align: left; }
+  .note-input:focus { border-color: var(--accent); outline: none; }
+  .note-input::placeholder { color: var(--ink-faint); }
+  .t-note { color: var(--ink); font-size: 12px; max-width: 260px; }
+  .note-cell { display: flex; align-items: center; gap: 4px; }
+  .note-exp { flex: none; background: none; border: 0; color: var(--ink-faint); cursor: pointer;
+              font-size: 14px; line-height: 1; padding: 4px 3px; border-radius: 5px; }
+  .note-exp:hover { color: var(--accent); background: var(--surface-2); }
+  .note-modal { position: fixed; inset: 0; z-index: 2147482900; background: rgba(3,7,16,.6);
+                display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .note-modal[hidden] { display: none; }
+  .note-modal-box { width: 100%; max-width: 460px; background: var(--surface); border: 1px solid var(--border);
+                    border-radius: 14px; padding: 16px; box-shadow: 0 24px 60px rgba(0,0,0,.55); }
+  .note-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  #noteModalTitle { font-weight: 700; color: var(--ink); font-size: 15px; }
+  .note-modal-x { background: none; border: 0; color: var(--ink-faint); cursor: pointer; font-size: 16px; padding: 2px 6px; }
+  .note-modal-x:hover { color: var(--ink); }
+  #noteModalText { width: 100%; box-sizing: border-box; min-height: 140px; resize: vertical;
+                   background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+                   padding: 10px 12px; color: var(--ink); font-size: 14px; line-height: 1.5; }
+  #noteModalText:focus { border-color: var(--accent); outline: none; }
+  .note-modal-foot { display: flex; justify-content: flex-end; margin-top: 12px; }
   .contrib-donut { max-width: 250px; margin: 10px auto 8px; }
   .contrib-donut svg { width: 100%; height: auto; display: block; }
   .donut-total { fill: var(--ink); font-family: var(--font-mono); font-size: 27px; font-weight: 700; }
@@ -310,13 +382,13 @@
       <h2>Current holdings</h2>
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
         <span class="card-sub" id="holdingsTotal"></span>
-        <button type="button" class="btn" id="refreshPricesBtn" title="Update each holding's value from the live market price">↻ Live prices</button>
+        <button type="button" class="btn" id="refreshPricesBtn" title="Prices auto-update about every 5 minutes while the market's open — click for an instant refresh">↻ Live prices</button>
       </div>
     </div>
     <div class="table-wrap">
       <table id="holdingsTable">
         <thead><tr>
-          <th class="l">Symbol</th><th>Shares</th><th>Value</th><th>Avg cost</th><th>Cost basis</th><th>Unreal.&nbsp;P&amp;L</th><th></th>
+          <th class="l">Symbol</th><th>Shares</th><th>Value</th><th>Avg cost</th><th>Cost basis</th><th>Unreal.&nbsp;P&amp;L</th><th class="l">Notes</th><th></th>
         </tr></thead>
         <tbody id="holdingsBody"></tbody>
       </table>
@@ -358,14 +430,23 @@
 
   <section class="card">
     <div class="card-head"><h2>All trades</h2><span class="card-sub" id="tradeCount"></span></div>
+    <div class="tf-tabs" id="tfTabs">
+      <button type="button" class="tf-chip" data-tf="1w">1W</button>
+      <button type="button" class="tf-chip" data-tf="1m">1M</button>
+      <button type="button" class="tf-chip" data-tf="3m">3M</button>
+      <button type="button" class="tf-chip" data-tf="1y">1Y</button>
+      <button type="button" class="tf-chip active" data-tf="all">All</button>
+    </div>
+    <div class="trades-chart" id="tradesChart"></div>
     <div class="table-wrap">
       <table id="tradesTable">
         <thead><tr>
-          <th class="l">Date</th><th class="l">Tickers</th><th>P&amp;L</th><th></th>
+          <th class="l">Date</th><th class="l">Tickers</th><th>P&amp;L</th><th class="l">Notes</th><th>Qty</th><th>Value</th><th></th>
         </tr></thead>
         <tbody id="tradesBody"></tbody>
       </table>
     </div>
+    <button type="button" class="show-all-btn" id="showAllTrades" hidden></button>
     <details class="addform" id="pnlDetails" style="margin-top:14px;">
       <summary>Add a past trade — P&amp;L only (no entry/exit needed)</summary>
       <form class="form-grid" id="pnlForm">
@@ -396,6 +477,18 @@
   </section>
 
   <footer class="foot">Private to you — trades are saved in this browser only, never uploaded.</footer>
+
+  <!-- Note reader/editor popup (opened from the ⤢ button on a holding's note) -->
+  <div id="noteModal" class="note-modal" hidden>
+    <div class="note-modal-box">
+      <div class="note-modal-head">
+        <span id="noteModalTitle">Note</span>
+        <button type="button" id="noteModalClose" class="note-modal-x" title="Close">✕</button>
+      </div>
+      <textarea id="noteModalText" placeholder="Notes for planning this position…"></textarea>
+      <div class="note-modal-foot"><button type="button" id="noteModalSave" class="btn">Save note</button></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -403,41 +496,50 @@
   "use strict";
 
   /* ===== DEMO BUILD — example data in memory only; never touches real app storage ===== */
-  var __demo = {
-    "ledger.trades.v1": JSON.stringify([
-      {id:"t15",openDate:"2026-08-01",symbol:"PLTR",direction:"long",qty:50,entry:28,exit:"",closeDate:"",fees:0,mktValue:1720,tickers:["PLTR"],strategy:"Momentum",notes:"current position"},
-      {id:"t1",openDate:"2026-01-06",closeDate:"2026-01-14",symbol:"NVDA",direction:"long",qty:20,entry:128.5,exit:141.2,fees:0,tickers:["NVDA"],strategy:"Breakout",notes:""},
-      {id:"t2",openDate:"2026-01-20",closeDate:"2026-01-28",symbol:"AAPL",direction:"long",qty:40,entry:189,exit:195.4,fees:0,tickers:["AAPL"],strategy:"Swing",notes:""},
-      {id:"t3",openDate:"2026-02-03",closeDate:"2026-02-10",symbol:"MSFT",direction:"long",qty:12,entry:402,exit:418.5,fees:0,tickers:["MSFT"],strategy:"Trend",notes:""},
-      {id:"t4",openDate:"2026-02-12",closeDate:"2026-02-18",symbol:"TSLA",direction:"long",qty:25,entry:205,exit:194,fees:0,tickers:["TSLA"],strategy:"Momentum",notes:"stopped out"},
-      {id:"t5",openDate:"2026-02-24",closeDate:"2026-03-03",symbol:"AMD",direction:"long",qty:60,entry:118,exit:129.5,fees:0,tickers:["AMD"],strategy:"Breakout",notes:""},
-      {id:"t6",openDate:"2026-03-10",closeDate:"2026-03-17",symbol:"META",direction:"long",qty:10,entry:480,exit:512,fees:0,tickers:["META"],strategy:"Earnings",notes:""},
-      {id:"t7",openDate:"2026-03-20",closeDate:"2026-03-26",symbol:"GOOGL",direction:"long",qty:30,entry:152,exit:149.5,fees:0,tickers:["GOOGL"],strategy:"Swing",notes:""},
-      {id:"t8",openDate:"2026-04-01",closeDate:"2026-04-09",symbol:"NVDA",direction:"long",qty:22,entry:135,exit:152,fees:0,tickers:["NVDA"],strategy:"Trend",notes:""},
-      {id:"t9",openDate:"2026-04-14",closeDate:"2026-04-22",symbol:"AMZN",direction:"long",qty:18,entry:178,exit:188,fees:0,tickers:["AMZN"],strategy:"Swing",notes:""},
-      {id:"t10",openDate:"2026-05-05",closeDate:"2026-05-12",symbol:"AAPL",direction:"long",qty:35,entry:196,exit:205.5,fees:0,tickers:["AAPL"],strategy:"Trend",notes:""},
-      {id:"t11",openDate:"2026-05-19",closeDate:"2026-05-27",symbol:"AMD",direction:"long",qty:50,entry:132,exit:128,fees:0,tickers:["AMD"],strategy:"Momentum",notes:""},
-      {id:"t12",openDate:"2026-06-02",closeDate:"2026-06-10",symbol:"MSFT",direction:"long",qty:14,entry:420,exit:441,fees:0,tickers:["MSFT"],strategy:"Swing",notes:""},
-      {id:"t13",openDate:"2026-06-16",closeDate:"2026-06-24",symbol:"NVDA",direction:"long",qty:25,entry:150,exit:168,fees:0,tickers:["NVDA"],strategy:"Breakout",notes:""},
-      {id:"t14",openDate:"2026-07-07",closeDate:"2026-07-15",symbol:"TSLA",direction:"long",qty:20,entry:240,exit:262,fees:0,tickers:["TSLA"],strategy:"Trend",notes:""}
-    ]),
-    "ledger.holdings.v1": JSON.stringify([
-      {id:"h1",symbol:"AAPL",shares:40,cost:182,value:8420},
-      {id:"h2",symbol:"NVDA",shares:30,cost:120,value:5010},
-      {id:"h3",symbol:"MSFT",shares:12,cost:405,value:5316},
-      {id:"h4",symbol:"SPY",shares:15,cost:520,value:8250},
-      {id:"h5",symbol:"AMD",shares:60,cost:125,value:7080}
-    ]),
-    "ledger.contrib.v1": JSON.stringify({"2026-01":500,"2026-02":500,"2026-03":750,"2026-04":500,"2026-05":600,"2026-06":800,"2026-07":500,"2026-08":500,"2026-09":700,"2026-10":500,"2026-11":600,"2026-12":900})
-  };
+  window.SyncPrices = { getQuotes: function () { return Promise.resolve({}); } };
+  var __demo = {};
+  (function () {
+    function d(n) { var x = new Date(); x.setDate(x.getDate() - n); return x.toISOString().slice(0, 10); }
+    var trades = [
+      {id:"d1", openDate:d(2),  closeDate:d(2),  symbol:"TSLA", tickers:["TSLA"], direction:"long", qty:20, entry:240,   exit:262,   fees:0, strategy:"Trend",    notes:"rode the 20-EMA, trimmed into strength"},
+      {id:"d2", openDate:d(5),  closeDate:d(5),  symbol:"AMD",  tickers:["AMD"],  direction:"long", qty:50, entry:132,   exit:128,   fees:0, strategy:"Momentum", notes:"stopped out, kept it tight"},
+      {id:"d3", openDate:d(12), closeDate:d(12), symbol:"NVDA", tickers:["NVDA"], direction:"long", qty:25, entry:150,   exit:168,   fees:0, strategy:"Breakout", notes:"clean break over resistance"},
+      {id:"d4", openDate:d(20), closeDate:d(20), symbol:"AAPL", tickers:["AAPL"], direction:"long", qty:35, entry:196,   exit:205.5, fees:0, strategy:"Swing",    notes:""},
+      {id:"d5", openDate:d(28), closeDate:d(28), symbol:"MSFT", tickers:["MSFT"], direction:"long", qty:14, entry:420,   exit:441,   fees:0, strategy:"Trend",    notes:""},
+      {id:"d6", openDate:d(38), closeDate:d(38), symbol:"QBTS", tickers:["QBTS"], qty:"", entry:"", exit:"", fees:0, manualPnl:931, strategy:"Quantum",  notes:"partial exit, let the runner go"},
+      {id:"d7", openDate:d(45), closeDate:d(45), symbol:"META", tickers:["META"], direction:"long", qty:10, entry:480,   exit:512,   fees:0, strategy:"Earnings", notes:"pre-earnings run-up"},
+      {id:"d8", openDate:d(58), closeDate:d(58), symbol:"GOOGL",tickers:["GOOGL"],direction:"long", qty:30, entry:152,   exit:149.5, fees:0, strategy:"Swing",    notes:""},
+      {id:"d9", openDate:d(72), closeDate:d(72), symbol:"AMZN", tickers:["AMZN"], direction:"long", qty:18, entry:178,   exit:188,   fees:0, strategy:"Trend",    notes:""},
+      {id:"d10",openDate:d(96), closeDate:d(96), symbol:"IONQ", tickers:["IONQ"], qty:"", entry:"", exit:"", fees:0, manualPnl:404, strategy:"Momentum", notes:""},
+      {id:"d11",openDate:d(120),closeDate:d(120),symbol:"NVDA", tickers:["NVDA"], direction:"long", qty:20, entry:128.5, exit:141.2, fees:0, strategy:"Breakout", notes:""},
+      {id:"d12",openDate:d(150),closeDate:d(150),symbol:"AAPL", tickers:["AAPL"], direction:"long", qty:40, entry:189,   exit:195.4, fees:0, strategy:"Swing",    notes:""},
+      {id:"d13",openDate:d(200),closeDate:d(200),symbol:"AMD",  tickers:["AMD"],  direction:"long", qty:60, entry:118,   exit:129.5, fees:0, strategy:"Breakout", notes:"held through the base"},
+      {id:"d14",openDate:d(255),closeDate:d(255),symbol:"TSLA", tickers:["TSLA"], direction:"long", qty:25, entry:205,   exit:194,   fees:0, strategy:"Reversal", notes:"cut the loss fast"},
+      {id:"d15",openDate:d(320),closeDate:d(320),symbol:"MSFT", tickers:["MSFT"], direction:"long", qty:12, entry:402,   exit:418.5, fees:0, strategy:"Trend",    notes:""}
+    ];
+    var holdings = [
+      {id:"h1", symbol:"CLSK", shares:100, value:1208, cost:11.2, note:"miner momentum play"},
+      {id:"h2", symbol:"INFQ", shares:500, value:6250, cost:11.8, note:""},
+      {id:"h3", symbol:"QSI",  shares:600, value:446,  cost:0.9,  note:"long-term hold"},
+      {id:"h4", symbol:"ALLO", shares:200, value:1850, cost:8.5,  note:""},
+      {id:"h5", symbol:"NVDA", shares:30,  value:5010, cost:120,  note:"core position"},
+      {id:"h6", symbol:"LAES", shares:300, value:905,  cost:3.02, note:""}
+    ];
+    var yr = new Date().getFullYear();
+    var contrib = {}; for (var m = 1; m <= 12; m++) { contrib[yr + "-" + ("0" + m).slice(-2)] = [500,500,750,500,600,800,500,500,700,500,600,900][m-1]; }
+    __demo["ledger.trades.v1"]   = JSON.stringify(trades);
+    __demo["ledger.holdings.v1"] = JSON.stringify(holdings);
+    __demo["ledger.contrib.v1"]  = JSON.stringify(contrib);
+  })();
+
   var localStorage = {
     getItem: function (k) { return (k in __demo) ? __demo[k] : null; },
     setItem: function (k, v) { __demo[k] = String(v); },
     removeItem: function (k) { delete __demo[k]; },
-    clear: function () { __demo = {}; },
+    clear: function () { for (var k in __demo) delete __demo[k]; },
     get length() { return Object.keys(__demo).length; }
   };
-  /* =================================================================================== */
+  /* ================================================================================= */
 
   var KEY = "ledger.trades.v1";
 
@@ -471,6 +573,57 @@
   function seedHoldings() { return []; }
   function hold(sym, shares, value, cost) { return { id: uid(), symbol: sym, shares: shares, cost: (cost == null ? "" : cost), value: value }; }
 
+  // Buy/sell a symbol's shares in the holdings list. Positive delta = buy (average cost blends
+  // when the whole position has a coherent cost); negative = sell (subtracts). A position that
+  // hits zero shares is removed. Value tracks cost basis until a live-price refresh overwrites it.
+  function upsertHolding(sym, deltaShares, costPerShare, note) {
+    sym = String(sym || "").trim().toUpperCase();
+    var h = holdings.filter(function (z) { return String(z.symbol || "").trim().toUpperCase() === sym; })[0];
+    if (deltaShares > 0) {
+      var cps = (costPerShare == null || costPerShare === "" || isNaN(Number(costPerShare))) ? null : Number(costPerShare);
+      if (!h) {
+        holdings.push({ id: uid(), symbol: sym, shares: deltaShares,
+          value: cps != null ? cps * deltaShares : 0, cost: cps != null ? cps : "", note: note || "" });
+      } else {
+        var oldSh = Number(h.shares) || 0;
+        var oldCost = (h.cost === "" || h.cost == null) ? null : Number(h.cost);
+        var newSh = oldSh + deltaShares;
+        if (cps != null && (oldCost != null || oldSh === 0)) {
+          h.cost = ((oldCost != null ? oldCost : 0) * oldSh + cps * deltaShares) / newSh;   // blended avg cost
+        } else if (cps == null && oldCost != null) {
+          h.cost = "";   // mixing cost-less shares into a priced position → position is now mixed
+        }
+        h.value = (Number(h.value) || 0) + (cps != null ? cps * deltaShares : 0);
+        h.shares = newSh;
+        if (note) h.note = note;   // latest buy note becomes the position's note (still editable)
+      }
+    } else if (deltaShares < 0 && h) {
+      var oldSh2 = Number(h.shares) || 0;
+      var remaining = oldSh2 - Math.min(-deltaShares, oldSh2);
+      if (remaining <= 0) {
+        holdings = holdings.filter(function (z) { return z !== h; });
+      } else {
+        if (oldSh2 > 0) h.value = (Number(h.value) || 0) * (remaining / oldSh2);   // shrink value proportionally
+        h.shares = remaining;
+      }
+    }
+    persistH();
+  }
+
+  // New model: positions live in holdings, never as "open trades." Fold any open-buy trades
+  // (entry logged, no exit) into holdings and drop them from the log. Runs on load AND after every
+  // cloud sync, so legacy open trades arriving from another device get absorbed too. No-op once clean.
+  function foldOpenBuys() {
+    var opens = trades.filter(function (t) { return compute(t).open && (t.manualPnl == null || t.manualPnl === ""); });
+    if (!opens.length) return;
+    opens.forEach(function (t) {
+      if (t.symbol && Number(t.qty) > 0) upsertHolding(t.symbol, Number(t.qty), (t.entry === "" || t.entry == null) ? null : Number(t.entry));
+    });
+    trades = trades.filter(function (t) { return !(compute(t).open && (t.manualPnl == null || t.manualPnl === "")); });
+    persist();
+  }
+  foldOpenBuys();
+
   // ---------- portfolio contributions (monthly funds added) ----------
   var CKEY = "ledger.contrib.v1";
   var contrib = loadContrib();
@@ -490,6 +643,7 @@
   // in place (no page reload — reliable on iOS Safari, which caches reloaded pages).
   window.__resyncApply = function () {
     trades = load(); holdings = loadHoldings(); contrib = loadContrib(); extraYears = loadYears();
+    foldOpenBuys();
     render();
   };
 
@@ -522,8 +676,21 @@
   function money(v, dp) { return (dp === 2 ? usd2 : usd).format(v || 0); }
   function signed(v) { return (v > 0 ? "+" : "") + money(v); }
   function cls(v) { return v > 0 ? "pos" : (v < 0 ? "neg" : ""); }
-  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
-    return ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" })[c]; }); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"'/]/g, function (c) {
+    return ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;","/":"&#47;" })[c]; }); }
+  // A right-aligned money <input> cell with a leading "$" (shown only when a value is present,
+  // so empty cells stay clean). Used for every editable dollar amount — holdings Value/Cost, trade Value.
+  function moneyCell(attr, id, raw) {
+    var has = !(raw === "" || raw == null);
+    var str = has ? String(raw) : "";
+    // Size the input to its content so the $ hugs the number identically per row (pill clips any overflow).
+    var chLen = Math.min(Math.max(str.length, 1), 10);
+    var wStyle = has ? ' style="width:calc(' + chLen + 'ch + 3px)"' : '';
+    return '<td class="num"><span class="val-wrap' + (has ? ' has' : '') + '">' +
+      (has ? '<span class="cur">$</span>' : '') +
+      '<input class="cost-input"' + wStyle + ' type="number" step="any" min="0" ' +
+      attr + '="' + id + '" value="' + (has ? esc(str) : '') + '" placeholder="—"></span></td>';
+  }
   function monthName(k) {
     var p = k.split("-"); return new Date(p[0], p[1]-1, 1).toLocaleDateString("en-US",{month:"short",year:"numeric"});
   }
@@ -617,16 +784,11 @@
 
   function renderHoldings() {
     var totVal = 0, totUnreal = 0, hasUnreal = false, body = "";
-    // Current positions = manually-added holdings + open trades.
+    // Current positions live entirely in the holdings list (one editable row per stock). Buys
+    // post in here, sells subtract from here — so there's never a duplicate or a non-editable line.
     var positions = holdings.map(function (h) {
-      return { id: h.id, kind: "h", symbol: h.symbol, shares: h.shares, value: h.value, cost: h.cost };
-    }).concat(openPositions().map(function (t) {
-      // Until a live price is fetched, show an open position at its cost (value = cost basis).
-      var basis = (t.entry !== "" && t.entry != null && t.qty !== "" && t.qty != null)
-        ? Number(t.entry) * Number(t.qty) : "";
-      return { id: t.id, kind: "t", symbol: t.symbol, shares: t.qty,
-               value: (t.mktValue == null ? basis : t.mktValue), cost: t.entry };
-    }));
+      return { id: h.id, symbol: h.symbol, shares: h.shares, value: h.value, cost: h.cost, note: h.note };
+    });
 
     positions.forEach(function (x) {
       var hasVal = !(x.value === "" || x.value == null);
@@ -635,30 +797,29 @@
       var basis = costNum != null ? costNum * Number(x.shares) : null;
       var unreal = (basis != null && hasVal) ? val - basis : null;
       if (unreal != null) { totUnreal += unreal; hasUnreal = true; }
-      var tag = x.kind === "t"
-        ? ' <span style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);border:1px solid var(--border);border-radius:5px;padding:1px 5px;margin-left:6px;vertical-align:middle;">open</span>'
-        : '';
       body += '<tr>' +
-        '<td class="l sym">' + esc(x.symbol) + tag + '</td>' +
+        '<td class="l sym">' + esc(x.symbol) + '</td>' +
         '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pshares="' + x.id +
           '" value="' + (x.shares === "" || x.shares == null ? "" : esc(x.shares)) + '" placeholder="—"></td>' +
-        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pval="' + x.id +
-          '" value="' + (x.value === "" || x.value == null ? "" : esc(x.value)) + '" placeholder="—"></td>' +
-        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pcost="' + x.id +
-          '" value="' + (x.cost === "" || x.cost == null ? "" : esc(x.cost)) + '" placeholder="—"></td>' +
+        moneyCell("data-pval", x.id, x.value) +
+        moneyCell("data-pcost", x.id, x.cost) +
         '<td class="num">' + (basis != null ? money(basis) : "—") + '</td>' +
         '<td class="num ' + (unreal == null ? "" : cls(unreal)) + '">' + (unreal == null ? "—" : signed(unreal)) + '</td>' +
+        '<td class="l"><div class="note-cell">' +
+          '<input class="note-input" type="text" data-pnote="' + x.id + '" value="' + esc(x.note || "") + '" placeholder="＋ note" spellcheck="false">' +
+          '<button type="button" class="note-exp" data-nexp="' + x.id + '" title="Open note to read / edit">⤢</button>' +
+        '</div></td>' +
         '<td><button class="del" title="Remove" data-pid="' + x.id + '">✕</button></td>' +
       '</tr>';
     });
     if (!positions.length) {
-      body = '<tr><td colspan="7" class="empty">No holdings yet — add a trade (leave Exit blank) or a holding below.</td></tr>';
+      body = '<tr><td colspan="8" class="empty">No holdings yet — add a trade (leave Exit blank) or a holding below.</td></tr>';
     } else {
       body += '<tr class="total-row"><td class="l">Total</td><td></td>' +
         '<td class="num">' + money(totVal) + '</td>' +
         '<td></td><td></td>' +
         '<td class="num ' + (hasUnreal ? cls(totUnreal) : "") + '">' + (hasUnreal ? signed(totUnreal) : "—") + '</td>' +
-        '<td></td></tr>';
+        '<td></td><td></td></tr>';
     }
     document.getElementById("holdingsBody").innerHTML = body;
     document.getElementById("holdingsTotal").textContent = money(totVal) + " market value";
@@ -689,6 +850,14 @@
       inp.addEventListener("change", function () {
         updatePos(inp.getAttribute("data-pcost"), "cost", inp.value === "" ? "" : parseFloat(inp.value));
       });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-pnote]"), function (inp) {
+      inp.addEventListener("change", function () {
+        updatePos(inp.getAttribute("data-pnote"), "note", inp.value);
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-nexp]"), function (b) {
+      b.addEventListener("click", function () { openNoteModal(b.getAttribute("data-nexp")); });
     });
     Array.prototype.forEach.call(document.querySelectorAll("[data-pid]"), function (b) {
       b.addEventListener("click", function () {
@@ -849,19 +1018,89 @@
   }
 
   // ---------- trades table ----------
+  // All Trades view state: which timeframe tab is active + whether the full list is expanded.
+  var tradeTF = "all", tradeExpanded = false, TRADE_PAGE = 10;
+  // Start of the selected timeframe window (relative to today). "all" → no lower bound.
+  function tfCutoff(tf) {
+    var d = new Date(); d.setHours(0, 0, 0, 0);
+    if (tf === "1w") d.setDate(d.getDate() - 7);
+    else if (tf === "1m") d.setMonth(d.getMonth() - 1);
+    else if (tf === "3m") d.setMonth(d.getMonth() - 3);
+    else if (tf === "1y") d.setFullYear(d.getFullYear() - 1);
+    else return null;                       // "all"
+    return d;
+  }
+
+  // "Gains & Losses" line chart for the trades currently in view (respects the timeframe tab).
+  // Styled to match the Equity Curve: gray grid + $ labels on the right, dashed zero line, 2px lines
+  // (green gains / purple losses), no fill, a dot at the latest point.
+  function renderTradesChart(list) {
+    var host = document.getElementById("tradesChart");
+    if (!host) return;
+    var vals = list.slice().reverse()                       // oldest → newest
+      .map(function (t) { return compute(t).pnl; })
+      .filter(function (v) { return typeof v === "number" && !isNaN(v); });
+    if (!vals.length || (Math.max.apply(null, vals) === 0 && Math.min.apply(null, vals) === 0)) { host.innerHTML = ""; return; }
+
+    var pts = vals.length === 1 ? [vals[0], vals[0]] : vals; // a single trade → flat line
+    var W = 640, H = 210, padL = 6, padR = 6, padT = 16, padB = 16, n = pts.length;
+    var max = Math.max(0, Math.max.apply(null, pts));
+    var min = Math.min(0, Math.min.apply(null, pts));
+    if (min === max) max = min + 1;
+    var x = function (i) { return padL + (n === 1 ? 0 : (i / (n - 1)) * (W - padL - padR)); };
+    var y = function (v) { return padT + (1 - (v - min) / (max - min)) * (H - padT - padB); };
+    var nsw = ' vector-effect="non-scaling-stroke"';
+    var z = y(0);
+    var gPts = pts.map(function (v, i) { return x(i).toFixed(1) + " " + y(Math.max(v, 0)).toFixed(1); });
+    var lPts = pts.map(function (v, i) { return x(i).toFixed(1) + " " + y(Math.min(v, 0)).toFixed(1); });
+    var gLine = "M" + gPts.join(" L"), lLine = "M" + lPts.join(" L");
+    var gArea = "M" + x(0).toFixed(1) + " " + z.toFixed(1) + " L" + gPts.join(" L") + " L" + x(n - 1).toFixed(1) + " " + z.toFixed(1) + " Z";
+    var lArea = "M" + x(0).toFixed(1) + " " + z.toFixed(1) + " L" + lPts.join(" L") + " L" + x(n - 1).toFixed(1) + " " + z.toFixed(1) + " Z";
+
+    var ticks = 4, grid = "", labels = "";
+    for (var g = 0; g <= ticks; g++) {
+      var val = min + (max - min) * g / ticks, gy = y(val);
+      grid += '<line class="grid-line"' + nsw + ' x1="' + padL + '" y1="' + gy.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + gy.toFixed(1) + '"/>';
+      labels += '<span style="top:' + (gy / H * 100).toFixed(2) + '%">' + money(val) + '</span>';
+    }
+    var lastV = pts[n - 1];
+
+    host.innerHTML =
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Gains and losses">' +
+        grid +
+        '<line class="zero-line"' + nsw + ' x1="' + padL + '" y1="' + z.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + z.toFixed(1) + '"/>' +
+        '<path class="gl-area-loss" d="' + lArea + '"/>' +
+        '<path class="gl-area-gain" d="' + gArea + '"/>' +
+        '<path class="gl-line gl-loss"' + nsw + ' d="' + lLine + '"/>' +
+        '<path class="gl-line gl-gain"' + nsw + ' d="' + gLine + '"/>' +
+        '<circle class="gl-dot" cx="' + x(n - 1).toFixed(1) + '" cy="' + y(lastV).toFixed(1) + '" r="3" vector-effect="non-scaling-stroke"/>' +
+      '</svg>' +
+      '<div class="gl-labels">' + labels + '</div>';
+  }
+
   function renderTrades() {
     var yr = selectedYear();
+    var cutoff = tfCutoff(tradeTF);
     var list = trades.slice().sort(function (a, b) {
       return new Date(b.openDate) - new Date(a.openDate);
     }).filter(function (t) {
       if (compute(t).open) return false;   // open positions live in Current Holdings, not here
-      if (yr === "all") return true;
-      var d = t.closeDate || t.openDate; return d && d.slice(0, 4) === yr;
+      if (yr !== "all") { var dy = t.closeDate || t.openDate; if (!dy || dy.slice(0, 4) !== yr) return false; }
+      if (cutoff) { var d = t.openDate || t.closeDate; if (!d || new Date(d) < cutoff) return false; }
+      return true;
     });
+    renderTradesChart(list);               // performance visual reflects the whole timeframe, not just the page
+    // Show the 10 latest by default; the Show-all toggle reveals the rest.
+    var shown = tradeExpanded ? list : list.slice(0, TRADE_PAGE);
     var body = "";
     var blank = function (v) { return (v === "" || v == null) ? "—" : v; };
-    list.forEach(function (t) {
+    shown.forEach(function (t) {
       var c = compute(t);
+      var tnote = [t.strategy, t.notes].filter(Boolean).join(" · ");
+      var hasQty = !(t.qty === "" || t.qty == null);
+      // Value = an explicit sale value if set, else auto-derived from a closed trade's exit × shares.
+      var valDisp = (t.saleValue !== "" && t.saleValue != null) ? t.saleValue
+          : (t.manualPnl == null && hasQty && t.exit !== "" && t.exit != null ? Math.round(Number(t.exit) * Number(t.qty) * 100) / 100 : "");
       body += '<tr>' +
         '<td class="l">' + fmtDay(t.openDate) + '</td>' +
         '<td class="l"><input class="tkr-input" type="text" data-tkr="' + t.id +
@@ -869,12 +1108,29 @@
         '<td class="num">' + (c.open
               ? '<span class="pnl-pill flat">—</span>'
               : '<span class="pnl-pill ' + cls(c.pnl) + '">' + signed(c.pnl) + '</span>') + '</td>' +
+        '<td class="l"><div class="note-cell">' +
+          '<input class="note-input" type="text" data-tnote="' + t.id + '" value="' + esc(tnote) + '" placeholder="＋ note" spellcheck="false">' +
+          '<button type="button" class="note-exp" data-texp="' + t.id + '" title="Open note to read / edit">⤢</button>' +
+        '</div></td>' +
+        '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-tqty="' + t.id +
+            '" value="' + (hasQty ? esc(t.qty) : "") + '" placeholder="—"></td>' +
+        moneyCell("data-tvalue", t.id, valDisp) +
         '<td><button class="del" title="Delete" data-id="' + t.id + '">✕</button></td>' +
       '</tr>';
     });
-    if (!list.length) body = '<tr><td colspan="4" class="empty">No trades' + (yr === "all" ? "" : " in " + yr) + ' yet.</td></tr>';
+    if (!list.length) body = '<tr><td colspan="7" class="empty">No trades in this period.</td></tr>';
     document.getElementById("tradesBody").innerHTML = body;
     document.getElementById("tradeCount").textContent = list.length + " total";
+    // Reflect the active timeframe tab.
+    Array.prototype.forEach.call(document.querySelectorAll("#tfTabs .tf-chip"), function (b) {
+      b.classList.toggle("active", b.getAttribute("data-tf") === tradeTF);
+    });
+    // Show-all / Show-less toggle appears only when there are more than a page of trades.
+    var sa = document.getElementById("showAllTrades");
+    if (list.length > TRADE_PAGE) {
+      sa.hidden = false;
+      sa.textContent = tradeExpanded ? "Show less" : ("Show all (" + list.length + ")");
+    } else { sa.hidden = true; }
     Array.prototype.forEach.call(document.querySelectorAll(".del"), function (b) {
       b.addEventListener("click", function () { removeTrade(b.getAttribute("data-id")); });
     });
@@ -882,6 +1138,32 @@
       inp.addEventListener("change", function () {
         var tr = trades.filter(function (z) { return z.id === inp.getAttribute("data-tkr"); })[0];
         if (tr) { tr.tickers = parseTickers(inp.value); persist(); render(); }
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tnote]"), function (inp) {
+      inp.addEventListener("change", function () {
+        var tr = trades.filter(function (z) { return z.id === inp.getAttribute("data-tnote"); })[0];
+        if (tr) { tr.notes = inp.value; tr.strategy = ""; persist(); render(); }   // one combined note going forward
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-texp]"), function (b) {
+      b.addEventListener("click", function () { openNoteModal(b.getAttribute("data-texp")); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tqty]"), function (inp) {
+      inp.addEventListener("change", function () {
+        var tr = trades.filter(function (z) { return z.id === inp.getAttribute("data-tqty"); })[0];
+        if (!tr) return;
+        tr.qty = inp.value === "" ? "" : parseFloat(inp.value);
+        // Closed trade with an exit price → auto-fill the sale value (shares × exit). P&L also recomputes.
+        if (tr.manualPnl == null && tr.exit !== "" && tr.exit != null && tr.qty !== "")
+          tr.saleValue = Math.round(Number(tr.exit) * Number(tr.qty) * 100) / 100;
+        persist(); render();
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tvalue]"), function (inp) {
+      inp.addEventListener("change", function () {
+        var tr = trades.filter(function (z) { return z.id === inp.getAttribute("data-tvalue"); })[0];
+        if (tr) { tr.saleValue = inp.value === "" ? "" : parseFloat(inp.value); persist(); render(); }
       });
     });
   }
@@ -915,18 +1197,19 @@
     var dir = g("f-dir"), strategy = g("f-strategy").trim(), notes = g("f-notes").trim();
     var exit = g("f-exit") === "" ? "" : parseFloat(g("f-exit"));
     var closeDate = g("f-close");
-    var closing = exit !== "" && closeDate !== "";           // a real close needs price + date
-    var exitQty = g("f-exitqty") === "" ? qty : parseFloat(g("f-exitqty"));
-    var base = { symbol: sym, direction: dir, entry: entry, fees: 0, strategy: strategy, notes: notes };
+    var closing = exit !== "" && closeDate !== "";           // a sell needs a price + a date
 
-    if (closing && exitQty > 0 && exitQty < qty) {
-      // Partial close: realize P&L on the shares sold, keep the rest as an open position.
-      trades.push(Object.assign({ id: uid(), openDate: openDate, qty: exitQty, exit: exit, closeDate: closeDate }, base));
-      trades.push(Object.assign({ id: uid(), openDate: openDate, qty: qty - exitQty, exit: "", closeDate: "" }, base));
+    if (closing) {
+      // A SELL: record the realized P&L in the trade log, and subtract the shares from the holding.
+      trades.push({ id: uid(), openDate: openDate, qty: qty, exit: exit, closeDate: closeDate,
+        symbol: sym, direction: dir, entry: entry, fees: 0, strategy: strategy, notes: notes });
+      upsertHolding(sym, -qty);
+      persist();
     } else {
-      trades.push(Object.assign({ id: uid(), openDate: openDate, qty: qty, exit: exit, closeDate: closeDate }, base));
+      // A BUY: post straight into the holding — shares add up, average cost blends. No open row.
+      upsertHolding(sym, qty, entry, [strategy, notes].filter(Boolean).join(" · "));
     }
-    persist(); render();
+    render();
     this.reset();
   });
 
@@ -952,24 +1235,65 @@
     var g = function (id) { return document.getElementById(id).value; };
     var sym = g("h-symbol").trim().toUpperCase(), sh = parseFloat(g("h-shares"));
     if (!sym || !(sh > 0)) return;
-    holdings.push({ id: uid(), symbol: sym, shares: sh,
-                    cost: g("h-cost") === "" ? "" : parseFloat(g("h-cost")),
-                    value: parseFloat(g("h-value")) || 0 });
+    var cost = g("h-cost") === "" ? "" : parseFloat(g("h-cost"));
+    var valIn = g("h-value") === "" ? null : parseFloat(g("h-value"));
+    var existing = holdings.filter(function (z) { return String(z.symbol || "").trim().toUpperCase() === sym; })[0];
+    if (existing) {
+      // Merge into the existing position for this ticker (one line per stock).
+      var oldSh = Number(existing.shares) || 0, newSh = oldSh + sh;
+      var oldCost = (existing.cost === "" || existing.cost == null) ? null : Number(existing.cost);
+      if (cost !== "" && (oldCost != null || oldSh === 0)) existing.cost = ((oldCost != null ? oldCost : 0) * oldSh + cost * sh) / newSh;
+      else if (cost === "" && oldCost != null) existing.cost = "";
+      existing.shares = newSh;
+      existing.value = (Number(existing.value) || 0) + (valIn != null ? valIn : (cost !== "" ? cost * sh : 0));
+    } else {
+      holdings.push({ id: uid(), symbol: sym, shares: sh, cost: cost,
+        value: valIn != null ? valIn : (cost !== "" ? cost * sh : 0) });
+    }
     persistH(); renderHoldings(); this.reset();
   });
 
+  // ---------- note reader/editor popup (open a holding's full note to read or edit) ----------
+  var noteModalRef = null;   // { obj: <holding|trade>, isTrade: bool }
+  function openNoteModal(id) {
+    var h = holdings.filter(function (z) { return z.id === id; })[0];
+    var t = h ? null : trades.filter(function (z) { return z.id === id; })[0];
+    var obj = h || t;
+    if (!obj) return;
+    noteModalRef = { obj: obj, isTrade: !!t };
+    document.getElementById("noteModalTitle").textContent = (obj.symbol || (t ? "Trade" : "Position")) + " · note";
+    document.getElementById("noteModalText").value = t ? [t.strategy, t.notes].filter(Boolean).join(" · ") : (obj.note || "");
+    document.getElementById("noteModal").hidden = false;
+    document.getElementById("noteModalText").focus();
+  }
+  function closeNoteModal(save) {
+    if (save && noteModalRef) {
+      var v = document.getElementById("noteModalText").value;
+      if (noteModalRef.isTrade) { noteModalRef.obj.notes = v; noteModalRef.obj.strategy = ""; persist(); }
+      else { noteModalRef.obj.note = v; persistH(); }
+      render();
+    }
+    document.getElementById("noteModal").hidden = true;
+    noteModalRef = null;
+  }
+  document.getElementById("noteModalSave").addEventListener("click", function () { closeNoteModal(true); });
+  document.getElementById("noteModalClose").addEventListener("click", function () { closeNoteModal(false); });
+  document.getElementById("noteModal").addEventListener("click", function (e) { if (e.target.id === "noteModal") closeNoteModal(false); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !document.getElementById("noteModal").hidden) closeNoteModal(false); });
+
   // ---------- live prices (updates each holding's Value = live price × shares) ----------
   function setPriceNote(t) { var n = document.getElementById("priceNote"); if (n) n.textContent = t; }
-  function refreshPrices() {
+  var lastPriceAt = 0;
+  // silent=true → auto refresh: no button/spinner, and DISPLAY-ONLY (we don't persist, so
+  // constantly-changing prices never churn the cloud sync). The manual button saves the snapshot.
+  function refreshPrices(silent) {
     var btn = document.getElementById("refreshPricesBtn");
-    if (!window.SyncPrices || !window.SyncPrices.getQuotes) { setPriceNote("Log in to fetch live prices."); return; }
-    var opens = openPositions();
+    if (!window.SyncPrices || !window.SyncPrices.getQuotes) { if (!silent) setPriceNote("Log in to fetch live prices."); return; }
     var syms = [];
     holdings.forEach(function (h) { if (h.symbol) syms.push(String(h.symbol).toUpperCase()); });
-    opens.forEach(function (t) { if (t.symbol) syms.push(String(t.symbol).toUpperCase()); });
-    if (!syms.length) { setPriceNote("Add a position first."); return; }
-    if (btn) { btn.disabled = true; btn.textContent = "↻ Updating…"; }
-    setPriceNote("Fetching live prices…");
+    if (!syms.length) { if (!silent) setPriceNote("Add a position first."); return; }
+    if (!silent && btn) { btn.disabled = true; btn.textContent = "↻ Updating…"; }
+    if (!silent) setPriceNote("Fetching live prices…");
     window.SyncPrices.getQuotes(syms).then(function (prices) {
       var updated = 0, missing = [];
       holdings.forEach(function (h) {
@@ -978,24 +1302,53 @@
           h.value = Math.round(p * Number(h.shares) * 100) / 100; updated++;
         } else if (p == null) { missing.push(h.symbol); }
       });
-      opens.forEach(function (t) {
-        var p = prices[String(t.symbol).toUpperCase()];
-        if (p != null && !isNaN(p) && t.qty !== "" && t.qty != null) {
-          t.mktValue = Math.round(p * Number(t.qty) * 100) / 100; updated++;
-        } else if (p == null) { missing.push(t.symbol); }
-      });
-      persistH(); persist(); render();
+      if (!silent) persistH();     // manual refresh saves the snapshot; auto is display-only
+      render();
+      lastPriceAt = Date.now();
       var now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      var msg = updated + (updated === 1 ? " position" : " positions") + " updated · " + now;
-      if (missing.length) msg += " · no price for " + missing.filter(function (v, i, a) { return a.indexOf(v) === i; }).join(", ");
+      var msg = (silent ? "Auto-updated · " : (updated + (updated === 1 ? " position" : " positions") + " updated · ")) + now;
+      if (missing.length && !silent) msg += " · no price for " + missing.filter(function (v, i, a) { return a.indexOf(v) === i; }).join(", ");
       setPriceNote(msg);
     }).catch(function () {
-      setPriceNote("Couldn't fetch prices — try again in a moment.");
+      if (!silent) setPriceNote("Couldn't fetch prices — try again in a moment.");
     }).then(function () {
-      if (btn) { btn.disabled = false; btn.textContent = "↻ Live prices"; }
+      if (!silent && btn) { btn.disabled = false; btn.textContent = "↻ Live prices"; }
     });
   }
-  document.getElementById("refreshPricesBtn").addEventListener("click", refreshPrices);
+  document.getElementById("refreshPricesBtn").addEventListener("click", function () { refreshPrices(false); });
+
+  // All-trades timeframe tabs + Show-all toggle (bound once; they only re-render the trades list).
+  Array.prototype.forEach.call(document.querySelectorAll("#tfTabs .tf-chip"), function (b) {
+    b.addEventListener("click", function () { tradeTF = b.getAttribute("data-tf"); tradeExpanded = false; renderTrades(); });
+  });
+  document.getElementById("showAllTrades").addEventListener("click", function () { tradeExpanded = !tradeExpanded; renderTrades(); });
+
+  // US market hours: Mon–Fri, 9:30 AM – 4:00 PM America/New_York (ignores holidays; those just
+  // return the last price, harmlessly). Fail-open if the timezone can't be read.
+  function marketOpen() {
+    try {
+      var wd = "", hh = 0, mm = 0;
+      new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short",
+        hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).forEach(function (p) {
+        if (p.type === "weekday") wd = p.value;
+        else if (p.type === "hour") hh = parseInt(p.value, 10) % 24;
+        else if (p.type === "minute") mm = parseInt(p.value, 10);
+      });
+      if (wd === "Sat" || wd === "Sun") return false;
+      var mins = hh * 60 + mm;
+      return mins >= (9 * 60 + 30) && mins < (16 * 60);
+    } catch (e) { return true; }
+  }
+
+  // Auto-refresh: fetch once when the app opens (shows the current/last price even after hours),
+  // then at most every 5 minutes while the market's open and the tab is visible.
+  function autoTick() {
+    if (!window.SyncPrices || !holdings.length || document.visibilityState !== "visible") return;
+    if (lastPriceAt === 0 || (marketOpen() && Date.now() - lastPriceAt >= 5 * 60 * 1000)) refreshPrices(true);
+  }
+  setInterval(autoTick, 20000);   // check every 20s; the throttle above keeps real fetches to ~1 / 5 min
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") autoTick(); });
+  autoTick();
 
   // ---------- CSV ----------
   var FIELDS = ["openDate","symbol","direction","qty","entry","exit","closeDate","fees","manualPnl","strategy","notes"];
