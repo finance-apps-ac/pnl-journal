@@ -209,6 +209,14 @@
   .show-all-btn { display: block; width: 100%; margin-top: 12px; background: none; border: none;
                   color: var(--accent); font-weight: 700; font-size: 13px; cursor: pointer; padding: 9px; letter-spacing: .3px; }
   .show-all-btn:hover { text-decoration: underline; }
+  /* Gains & Losses mini area chart above the trades list (reacts to the timeframe tabs). */
+  .trades-chart { margin-top: 12px; }
+  .trades-chart:empty { display: none; }
+  .trades-chart svg { display: block; width: 100%; height: auto; }
+  .tc-legend { display: flex; gap: 18px; justify-content: center; font-size: 11px; font-weight: 700;
+               letter-spacing: .4px; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 6px; }
+  .tc-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .tc-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { text-align: right; font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px;
        color: var(--accent); font-weight: 600; padding: 8px 11px; border-bottom: 1px solid var(--border); white-space: nowrap; }
@@ -423,6 +431,7 @@
       <button type="button" class="tf-chip" data-tf="1y">1Y</button>
       <button type="button" class="tf-chip active" data-tf="all">All</button>
     </div>
+    <div class="trades-chart" id="tradesChart"></div>
     <div class="table-wrap">
       <table id="tradesTable">
         <thead><tr>
@@ -969,6 +978,48 @@
     return d;
   }
 
+  // "Gains & Losses" mini area chart for the trades currently in view (respects the timeframe tab).
+  // Two overlapping areas anchored to a zero line: green for gains, purple for losses.
+  function renderTradesChart(list) {
+    var host = document.getElementById("tradesChart");
+    if (!host) return;
+    var vals = list.slice().reverse()                       // oldest → newest
+      .map(function (t) { return compute(t).pnl; })
+      .filter(function (v) { return typeof v === "number" && !isNaN(v); });
+    var maxGain = vals.length ? Math.max(0, Math.max.apply(null, vals)) : 0;
+    var maxLoss = vals.length ? Math.max(0, -Math.min.apply(null, vals)) : 0;
+    if (!vals.length || (maxGain === 0 && maxLoss === 0)) { host.innerHTML = ""; return; }
+
+    var pts = vals.length === 1 ? [vals[0], vals[0]] : vals;   // a single trade → flat area
+    var W = 720, H = 150, padL = 4, padR = 4, padT = 12, padB = 12, m = pts.length;
+    var zeroY = padT + (maxGain / (maxGain + maxLoss)) * (H - padT - padB);
+    var xAt = function (i) { return padL + (m === 1 ? 0 : i * (W - padL - padR) / (m - 1)); };
+    var yG = function (v) { return zeroY - (Math.max(v, 0) / (maxGain || 1)) * (zeroY - padT); };
+    var yL = function (v) { return zeroY + (Math.max(-v, 0) / (maxLoss || 1)) * (H - padB - zeroY); };
+    var gLine = pts.map(function (v, i) { return xAt(i) + "," + yG(v).toFixed(1); }).join(" ");
+    var lLine = pts.map(function (v, i) { return xAt(i) + "," + yL(v).toFixed(1); }).join(" ");
+
+    var svg =
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Gains and losses over the selected period">' +
+        '<defs>' +
+          '<linearGradient id="tcGain" x1="0" y1="0" x2="0" y2="1">' +
+            '<stop offset="0" stop-color="var(--gain)" stop-opacity="0.45"/><stop offset="1" stop-color="var(--gain)" stop-opacity="0.03"/>' +
+          '</linearGradient>' +
+          '<linearGradient id="tcLoss" x1="0" y1="0" x2="0" y2="1">' +
+            '<stop offset="0" stop-color="var(--violet)" stop-opacity="0.03"/><stop offset="1" stop-color="var(--violet)" stop-opacity="0.45"/>' +
+          '</linearGradient>' +
+        '</defs>' +
+        '<polygon points="' + xAt(0) + ',' + zeroY.toFixed(1) + ' ' + gLine + ' ' + xAt(m - 1) + ',' + zeroY.toFixed(1) + '" fill="url(#tcGain)"/>' +
+        '<polygon points="' + xAt(0) + ',' + zeroY.toFixed(1) + ' ' + lLine + ' ' + xAt(m - 1) + ',' + zeroY.toFixed(1) + '" fill="url(#tcLoss)"/>' +
+        '<line x1="0" y1="' + zeroY.toFixed(1) + '" x2="' + W + '" y2="' + zeroY.toFixed(1) + '" stroke="var(--ink-faint)" stroke-width="1" stroke-dasharray="3 3" opacity="0.5"/>' +
+        '<polyline points="' + gLine + '" fill="none" stroke="var(--gain)" stroke-width="2" stroke-linejoin="round"/>' +
+        '<polyline points="' + lLine + '" fill="none" stroke="var(--violet)" stroke-width="2" stroke-linejoin="round"/>' +
+      '</svg>';
+    host.innerHTML =
+      '<div class="tc-legend"><span><i style="background:var(--violet)"></i>Losses</span>' +
+      '<span><i style="background:var(--gain)"></i>Gains</span></div>' + svg;
+  }
+
   function renderTrades() {
     var yr = selectedYear();
     var cutoff = tfCutoff(tradeTF);
@@ -980,6 +1031,7 @@
       if (cutoff) { var d = t.openDate || t.closeDate; if (!d || new Date(d) < cutoff) return false; }
       return true;
     });
+    renderTradesChart(list);               // performance visual reflects the whole timeframe, not just the page
     // Show the 10 latest by default; the Show-all toggle reveals the rest.
     var shown = tradeExpanded ? list : list.slice(0, TRADE_PAGE);
     var body = "";
