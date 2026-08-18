@@ -210,13 +210,14 @@
                   color: var(--accent); font-weight: 700; font-size: 13px; cursor: pointer; padding: 9px; letter-spacing: .3px; }
   .show-all-btn:hover { text-decoration: underline; }
   /* Gains & Losses mini area chart above the trades list (reacts to the timeframe tabs). */
-  .trades-chart { margin-top: 12px; }
+  .trades-chart { margin-top: 14px; }
   .trades-chart:empty { display: none; }
   .trades-chart svg { display: block; width: 100%; height: auto; }
-  .tc-legend { display: flex; gap: 18px; justify-content: center; font-size: 11px; font-weight: 700;
-               letter-spacing: .4px; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 6px; }
-  .tc-legend span { display: inline-flex; align-items: center; gap: 6px; }
-  .tc-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .gl-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .gl-gain { stroke: var(--gain); }
+  .gl-loss { stroke: var(--violet); }
+  .gl-dot-gain { fill: var(--gain); }
+  .gl-dot-loss { fill: var(--violet); }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { text-align: right; font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px;
        color: var(--accent); font-weight: 600; padding: 8px 11px; border-bottom: 1px solid var(--border); white-space: nowrap; }
@@ -978,46 +979,43 @@
     return d;
   }
 
-  // "Gains & Losses" mini area chart for the trades currently in view (respects the timeframe tab).
-  // Two overlapping areas anchored to a zero line: green for gains, purple for losses.
+  // "Gains & Losses" line chart for the trades currently in view (respects the timeframe tab).
+  // Styled to match the Equity Curve: gray grid + $ labels on the right, dashed zero line, 2px lines
+  // (green gains / purple losses), no fill, a dot at the latest point.
   function renderTradesChart(list) {
     var host = document.getElementById("tradesChart");
     if (!host) return;
     var vals = list.slice().reverse()                       // oldest → newest
       .map(function (t) { return compute(t).pnl; })
       .filter(function (v) { return typeof v === "number" && !isNaN(v); });
-    var maxGain = vals.length ? Math.max(0, Math.max.apply(null, vals)) : 0;
-    var maxLoss = vals.length ? Math.max(0, -Math.min.apply(null, vals)) : 0;
-    if (!vals.length || (maxGain === 0 && maxLoss === 0)) { host.innerHTML = ""; return; }
+    if (!vals.length || (Math.max.apply(null, vals) === 0 && Math.min.apply(null, vals) === 0)) { host.innerHTML = ""; return; }
 
-    var pts = vals.length === 1 ? [vals[0], vals[0]] : vals;   // a single trade → flat area
-    var W = 720, H = 150, padL = 4, padR = 4, padT = 12, padB = 12, m = pts.length;
-    var zeroY = padT + (maxGain / (maxGain + maxLoss)) * (H - padT - padB);
-    var xAt = function (i) { return padL + (m === 1 ? 0 : i * (W - padL - padR) / (m - 1)); };
-    var yG = function (v) { return zeroY - (Math.max(v, 0) / (maxGain || 1)) * (zeroY - padT); };
-    var yL = function (v) { return zeroY + (Math.max(-v, 0) / (maxLoss || 1)) * (H - padB - zeroY); };
-    var gLine = pts.map(function (v, i) { return xAt(i) + "," + yG(v).toFixed(1); }).join(" ");
-    var lLine = pts.map(function (v, i) { return xAt(i) + "," + yL(v).toFixed(1); }).join(" ");
+    var pts = vals.length === 1 ? [vals[0], vals[0]] : vals; // a single trade → flat line
+    var W = 640, H = 210, padL = 14, padR = 56, padT = 16, padB = 18, n = pts.length;
+    var max = Math.max(0, Math.max.apply(null, pts));
+    var min = Math.min(0, Math.min.apply(null, pts));
+    if (min === max) max = min + 1;
+    var x = function (i) { return padL + (n === 1 ? 0 : (i / (n - 1)) * (W - padL - padR)); };
+    var y = function (v) { return padT + (1 - (v - min) / (max - min)) * (H - padT - padB); };
+    var gPath = pts.map(function (v, i) { return (i ? "L" : "M") + x(i).toFixed(1) + " " + y(Math.max(v, 0)).toFixed(1); }).join(" ");
+    var lPath = pts.map(function (v, i) { return (i ? "L" : "M") + x(i).toFixed(1) + " " + y(Math.min(v, 0)).toFixed(1); }).join(" ");
 
-    var svg =
-      '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Gains and losses over the selected period">' +
-        '<defs>' +
-          '<linearGradient id="tcGain" x1="0" y1="0" x2="0" y2="1">' +
-            '<stop offset="0" stop-color="var(--gain)" stop-opacity="0.45"/><stop offset="1" stop-color="var(--gain)" stop-opacity="0.03"/>' +
-          '</linearGradient>' +
-          '<linearGradient id="tcLoss" x1="0" y1="0" x2="0" y2="1">' +
-            '<stop offset="0" stop-color="var(--violet)" stop-opacity="0.03"/><stop offset="1" stop-color="var(--violet)" stop-opacity="0.45"/>' +
-          '</linearGradient>' +
-        '</defs>' +
-        '<polygon points="' + xAt(0) + ',' + zeroY.toFixed(1) + ' ' + gLine + ' ' + xAt(m - 1) + ',' + zeroY.toFixed(1) + '" fill="url(#tcGain)"/>' +
-        '<polygon points="' + xAt(0) + ',' + zeroY.toFixed(1) + ' ' + lLine + ' ' + xAt(m - 1) + ',' + zeroY.toFixed(1) + '" fill="url(#tcLoss)"/>' +
-        '<line x1="0" y1="' + zeroY.toFixed(1) + '" x2="' + W + '" y2="' + zeroY.toFixed(1) + '" stroke="var(--ink-faint)" stroke-width="1" stroke-dasharray="3 3" opacity="0.5"/>' +
-        '<polyline points="' + gLine + '" fill="none" stroke="var(--gain)" stroke-width="2" stroke-linejoin="round"/>' +
-        '<polyline points="' + lLine + '" fill="none" stroke="var(--violet)" stroke-width="2" stroke-linejoin="round"/>' +
-      '</svg>';
-    host.innerHTML =
-      '<div class="tc-legend"><span><i style="background:var(--violet)"></i>Losses</span>' +
-      '<span><i style="background:var(--gain)"></i>Gains</span></div>' + svg;
+    var ticks = 4, grid = "";
+    for (var g = 0; g <= ticks; g++) {
+      var val = min + (max - min) * g / ticks, gy = y(val).toFixed(1);
+      grid += '<line class="grid-line" x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '"/>';
+      grid += '<text class="axis-text" x="' + (W - padR + 8) + '" y="' + gy + '" text-anchor="start" dominant-baseline="middle">' + money(val) + '</text>';
+    }
+    var lastV = pts[n - 1];
+    var dot = '<circle class="' + (lastV >= 0 ? "gl-dot-gain" : "gl-dot-loss") + '" cx="' + x(n - 1).toFixed(1) + '" cy="' + y(lastV).toFixed(1) + '" r="3.5"/>';
+
+    host.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Gains and losses">' +
+      grid +
+      '<line class="zero-line" x1="' + padL + '" y1="' + y(0).toFixed(1) + '" x2="' + (W - padR) + '" y2="' + y(0).toFixed(1) + '"/>' +
+      '<path class="gl-line gl-loss" d="' + lPath + '"/>' +
+      '<path class="gl-line gl-gain" d="' + gPath + '"/>' +
+      dot +
+    '</svg>';
   }
 
   function renderTrades() {
