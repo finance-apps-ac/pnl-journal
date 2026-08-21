@@ -109,7 +109,9 @@
   /* ---------- header ---------- */
   .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
   .brand { display: flex; align-items: flex-start; gap: 13px; }
-  .mark { width: 36px; height: 36px; border-radius: 9px; flex: none; }
+  .mark { width: 38px; height: 38px; border-radius: 10px; flex: none; overflow: hidden;
+          border: 1px solid var(--border); background: var(--surface-2);
+          box-shadow: 0 1px 3px rgba(0,0,0,.28); }
   .mark svg, .mark img { display: block; width: 100%; height: 100%; }
   .brand h1 { font-family: var(--font-ui); font-size: 22px; font-weight: 800; margin: 0;
               letter-spacing: 1.6px; text-transform: uppercase; }
