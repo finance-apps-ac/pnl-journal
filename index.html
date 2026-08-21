@@ -214,10 +214,24 @@
             color: var(--ink-soft); }
   .bs-btn:hover { color: var(--ink); }
   .bs-btn.active[data-mode="buy"]  { background: var(--gain); color: #04140b; }
-  .bs-btn.active[data-mode="sell"] { background: var(--violet); color: #150a30; }
-  /* Recolor the native dropdown's selected-option highlight from coral to violet
-     (red stays reserved for actual losses). */
-  #sellForm, #s-holding { accent-color: var(--violet); }
+  .bs-btn.active[data-mode="sell"] { background: var(--loss); color: #1a0606; }
+  /* Custom Position-to-sell dropdown — a native <select> can't recolor its selected-row
+     highlight in Safari, so this small listbox highlights the ticker in violet instead. */
+  .cdd { position: relative; }
+  .cdd-btn { width:100%; text-align:left; background:var(--surface-2); border:1px solid var(--border);
+    border-radius:8px; padding:8px 30px 8px 10px; font-size:13.5px; color:var(--ink); cursor:pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 5 6 2.5 9 5M3 7 6 9.5 9 7' fill='none' stroke='%23647294' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 11px center; background-size:12px; }
+  .cdd-btn:focus { border-color:var(--accent); outline:none; }
+  .cdd-list { position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:30; margin:0; padding:4px;
+    list-style:none; background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    box-shadow:var(--shadow); max-height:240px; overflow:auto; }
+  .cdd-list[hidden] { display:none; }
+  .cdd-list li { padding:8px 10px; border-radius:7px; cursor:pointer; font-size:13.5px; color:var(--ink);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cdd-list li.sel, .cdd-list li:hover { background:var(--violet); color:#fff; }
+  .cdd-list li.empty { color:var(--ink-faint); cursor:default; }
+  .cdd-list li.empty:hover { background:transparent; color:var(--ink-faint); }
   .sell-hint { grid-column: 1 / -1; font-size: 12px; color: var(--ink-faint); margin: -4px 0 2px; }
 
   /* ---------- tables ---------- */
@@ -409,8 +423,12 @@
       <!-- SELL: closes shares of an existing holding. Lands in All trades. -->
       <form class="form-grid" id="sellForm" hidden>
         <p class="sell-hint" id="sellHint">Pick a position you already hold — the buy details fill in automatically.</p>
-        <div class="field wide"><label for="s-holding">Position to sell</label>
-          <select id="s-holding" required></select></div>
+        <div class="field wide"><label for="s-holding-btn">Position to sell</label>
+          <div class="cdd" id="s-holding-dd">
+            <button type="button" class="cdd-btn" id="s-holding-btn" aria-haspopup="listbox" aria-expanded="false">Select…</button>
+            <ul class="cdd-list" id="s-holding-list" role="listbox" hidden></ul>
+            <input type="hidden" id="s-holding">
+          </div></div>
         <div class="field"><label for="s-close">Date sold</label><input type="date" id="s-close" required></div>
         <div class="field"><label for="s-qty">Quantity <span style="text-transform:none;color:var(--ink-faint)">(blank = all)</span></label><input type="number" id="s-qty" step="any" min="0" placeholder="all"></div>
         <div class="field"><label for="s-exit">Exit price</label><input type="number" id="s-exit" step="any" min="0" placeholder="41.10" required></div>
@@ -1204,35 +1222,65 @@
     });
   });
 
-  // Fill the Sell dropdown from current holdings — one option per open position, so a
-  // next-day sell never needs the buy re-entered.
+  // Custom Position-to-sell dropdown. A native <select> can't recolor its selected-row
+  // highlight in Safari, so this is a small styled listbox backed by a hidden input
+  // (#s-holding keeps the chosen holding id, so the submit handler is unchanged).
+  var ddBtn = document.getElementById("s-holding-btn"),
+      ddList = document.getElementById("s-holding-list"),
+      ddInput = document.getElementById("s-holding");
+
+  function ddOpen(open) {
+    ddList.hidden = !open;
+    ddBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  function ddSelect(id) {
+    ddInput.value = id || "";
+    var h = holdings.filter(function (z) { return z.id === id; })[0];
+    ddBtn.textContent = h ? h.symbol : (holdings.length ? "Select…" : "No open positions");
+    Array.prototype.forEach.call(ddList.querySelectorAll("li"), function (li) {
+      li.classList.toggle("sel", li.getAttribute("data-id") === id);
+    });
+    prefillSellFromHolding();
+  }
+  ddBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (!holdings.length) return;
+    ddOpen(ddList.hidden);
+  });
+  document.addEventListener("click", function (e) {
+    if (!document.getElementById("s-holding-dd").contains(e.target)) ddOpen(false);
+  });
+
+  // Rebuild the list from current holdings — one row per open position, so a next-day
+  // sell never needs the buy re-entered.
   function populateSellHoldings() {
-    var sel = document.getElementById("s-holding");
-    if (!sel) return;
-    var prev = sel.value;
+    if (!ddList) return;
+    var prev = ddInput.value;
     if (!holdings.length) {
-      sel.innerHTML = '<option value="">No open positions to sell</option>';
+      ddList.innerHTML = '<li class="empty">No open positions to sell</li>';
       document.getElementById("sellHint").textContent = "No open positions yet — log a Buy first.";
-      prefillSellFromHolding();
+      ddSelect(""); ddOpen(false);
       return;
     }
     document.getElementById("sellHint").textContent = "Pick a position you already hold — the buy details fill in automatically.";
-    sel.innerHTML = holdings.map(function (h) {
-      return '<option value="' + esc(h.id) + '">' + esc(h.symbol) + '</option>';
+    ddList.innerHTML = holdings.map(function (h) {
+      return '<li role="option" data-id="' + esc(h.id) + '">' + esc(h.symbol) + '</li>';
     }).join("");
-    if (prev && holdings.some(function (h) { return h.id === prev; })) sel.value = prev;
-    prefillSellFromHolding();
+    Array.prototype.forEach.call(ddList.querySelectorAll("li"), function (li) {
+      li.addEventListener("click", function () { ddSelect(li.getAttribute("data-id")); ddOpen(false); });
+    });
+    var keep = (prev && holdings.some(function (h) { return h.id === prev; })) ? prev : holdings[0].id;
+    ddSelect(keep);
   }
 
   // When a position is chosen, set the quantity placeholder to the shares held.
   // Entry price isn't asked for on a sell — it's already known from the buy.
   function prefillSellFromHolding() {
-    var sel = document.getElementById("s-holding");
-    var h = holdings.filter(function (z) { return z.id === sel.value; })[0];
+    var h = holdings.filter(function (z) { return z.id === ddInput.value; })[0];
     var qEl = document.getElementById("s-qty");
     qEl.placeholder = h ? (Math.round((Number(h.shares) || 0) * 1e4) / 1e4) + " (all)" : "all";
   }
-  document.getElementById("s-holding").addEventListener("change", prefillSellFromHolding);
+  sellForm.addEventListener("reset", function () { setTimeout(populateSellHoldings, 0); });
 
   // BUY → holdings. Shares add, average cost blends. Remembers open date / direction / setup
   // so a later Sell reconstructs the full round-trip in All trades.
