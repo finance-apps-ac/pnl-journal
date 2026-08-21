@@ -486,7 +486,7 @@
       <table id="monthlyTable">
         <thead><tr>
           <th class="l">Month</th><th>Trades</th><th>Win&nbsp;rate</th><th>Net P&amp;L</th>
-          <th>Best</th><th>Worst</th><th>Avg win</th><th>Avg loss</th><th>Cumulative</th>
+          <th>Best</th><th>Worst</th><th>Avg win</th><th>Avg loss</th><th>Total</th><th>Cumulative</th>
         </tr></thead>
         <tbody id="monthlyBody"></tbody>
       </table>
@@ -965,10 +965,11 @@
         '<td class="num ' + (o.worst < 0 ? "neg" : "") + '">' + (o.worst === null ? "—" : signed(o.worst)) + '</td>' +
         '<td class="num">' + (o.wins ? money(o.winSum / o.wins) : "—") + '</td>' +
         '<td class="num">' + (o.lossN ? money(o.lossSum / o.lossN) : "—") + '</td>' +
+        '<td class="num ' + cls(o.net) + '">' + signed(o.net) + '</td>' +
         '<td class="num ' + cls(cum) + '">' + signed(cum) + '</td>' +
       '</tr>';
     });
-    if (!agg.length) body = '<tr><td colspan="9" class="empty">No closed trades yet — add one above.</td></tr>';
+    if (!agg.length) body = '<tr><td colspan="10" class="empty">No closed trades yet — add one above.</td></tr>';
     document.getElementById("monthlyBody").innerHTML = body;
   }
 
