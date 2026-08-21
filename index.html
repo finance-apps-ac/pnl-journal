@@ -206,6 +206,15 @@
     background-repeat: no-repeat; background-position: right 11px center; background-size: 12px; padding-right: 30px; }
   .field input::placeholder { color: var(--ink-faint); }
   .form-actions { grid-column: 1 / -1; display: flex; gap: 10px; }
+  /* Sign toggle for the realized-P&L field — lets a loss be entered without a minus key
+     on the keyboard (mobile numeric keypads often omit it). */
+  .signed-input { display: flex; gap: 8px; }
+  .signed-input input { flex: 1; min-width: 0; }
+  .sign-toggle { flex: none; width: 46px; border: 1px solid var(--border); border-radius: 8px;
+                 background: var(--surface-2); color: var(--gain); font-size: 20px; font-weight: 700;
+                 line-height: 1; cursor: pointer; }
+  .sign-toggle.neg { color: var(--loss); border-color: color-mix(in srgb, var(--loss) 50%, var(--border)); }
+  .sign-toggle:hover { border-color: var(--accent); }
   /* Buy / Sell segmented toggle above the add-trade form. */
   .bs-toggle { display: inline-flex; gap: 4px; margin-top: 14px; background: var(--surface-2);
                border: 1px solid var(--border); border-radius: 10px; padding: 4px; }
@@ -518,7 +527,11 @@
       <form class="form-grid" id="pnlForm">
         <div class="field"><label for="p-date">Date</label><input type="date" id="p-date" required></div>
         <div class="field"><label for="p-label">Symbol / ticker</label><input type="text" id="p-label" placeholder="e.g. ALLO" autocapitalize="characters" spellcheck="false"></div>
-        <div class="field"><label for="p-amount">Realized P&amp;L ($)</label><input type="number" id="p-amount" step="any" placeholder="e.g. 468 or -120" required></div>
+        <div class="field"><label for="p-amount">Realized P&amp;L ($)</label>
+          <div class="signed-input">
+            <button type="button" class="sign-toggle" id="p-sign" title="Tap for a loss" aria-label="Gain or loss">+</button>
+            <input type="number" id="p-amount" step="any" min="0" inputmode="decimal" placeholder="e.g. 468" required>
+          </div></div>
         <div class="field"><label for="p-notes">Notes</label><input type="text" id="p-notes" placeholder="e.g. monthly total"></div>
         <div class="form-actions">
           <button type="submit" class="btn primary">Add trade</button>
@@ -1355,11 +1368,23 @@
   });
 
   // ---------- add realized-P&L entry ----------
+  // Sign toggle: tap flips gain (+, green) ↔ loss (−, red). Frees losses from needing a
+  // minus key, which many mobile numeric keypads don't show.
+  var pSign = document.getElementById("p-sign");
+  pSign.addEventListener("click", function () {
+    var neg = pSign.classList.toggle("neg");
+    pSign.textContent = neg ? "−" : "+";
+  });
+  document.getElementById("pnlForm").addEventListener("reset", function () {
+    pSign.classList.remove("neg"); pSign.textContent = "+";
+  });
   document.getElementById("pnlForm").addEventListener("submit", function (e) {
     e.preventDefault();
     var g = function (id) { return document.getElementById(id).value; };
-    var date = g("p-date"), amount = parseFloat(g("p-amount"));
+    var date = g("p-date"), raw = g("p-amount").trim(), amount = parseFloat(raw);
     if (!date || isNaN(amount)) return;
+    // Apply the toggle's sign to the magnitude (a typed "-" still wins, so nothing double-negates).
+    if (raw.indexOf("-") === -1 && pSign.classList.contains("neg")) amount = -Math.abs(amount);
     trades.push({
       id: uid(), openDate: date, closeDate: date,
       symbol: g("p-label").trim().toUpperCase() || "Realized P&L", direction: "long",
