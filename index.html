@@ -1140,7 +1140,10 @@
     });
     if (!list.length) body = '<tr><td colspan="7" class="empty">No trades in this period.</td></tr>';
     document.getElementById("tradesBody").innerHTML = body;
-    document.getElementById("tradeCount").textContent = list.length + " total";
+    var totalPnl = list.reduce(function (s, t) { return s + (compute(t).pnl || 0); }, 0);
+    document.getElementById("tradeCount").innerHTML =
+      'Total <span class="' + cls(totalPnl) + '">' + signed(totalPnl) + '</span> · ' +
+      list.length + (list.length === 1 ? " trade" : " trades");
     // Reflect the active timeframe tab.
     Array.prototype.forEach.call(document.querySelectorAll("#tfTabs .tf-chip"), function (b) {
       b.classList.toggle("active", b.getAttribute("data-tf") === tradeTF);
