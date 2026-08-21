@@ -1057,9 +1057,11 @@
   function renderTradesChart(list) {
     var host = document.getElementById("tradesChart");
     if (!host) return;
-    var vals = list.slice().reverse()                       // oldest → newest
+    var raw = list.slice().reverse()                        // oldest → newest
       .map(function (t) { return compute(t).pnl; })
       .filter(function (v) { return typeof v === "number" && !isNaN(v); });
+    var vals = [], run = 0;                                  // cumulative running total, so the
+    raw.forEach(function (v) { run += v; vals.push(run); }); // curve climbs to the timeframe total
     if (!vals.length || (Math.max.apply(null, vals) === 0 && Math.min.apply(null, vals) === 0)) { host.innerHTML = ""; return; }
 
     var pts = vals.length === 1 ? [vals[0], vals[0]] : vals; // a single trade → flat line
@@ -1086,7 +1088,7 @@
     var lastV = pts[n - 1];
 
     host.innerHTML =
-      '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Gains and losses">' +
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Cumulative P&L over the timeframe">' +
         grid +
         '<line class="zero-line"' + nsw + ' x1="' + padL + '" y1="' + z.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + z.toFixed(1) + '"/>' +
         '<path class="gl-area-loss" d="' + lArea + '"/>' +
