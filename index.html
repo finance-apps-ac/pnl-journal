@@ -23,7 +23,7 @@
 })();
 </script>
 <meta name="theme-color" content="#080D1A">
-<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="icon" type="image/png" href="icon-180.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -110,7 +110,7 @@
   .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
   .brand { display: flex; align-items: flex-start; gap: 13px; }
   .mark { width: 36px; height: 36px; border-radius: 9px; flex: none; }
-  .mark svg { display: block; width: 100%; height: 100%; }
+  .mark svg, .mark img { display: block; width: 100%; height: 100%; }
   .brand h1 { font-family: var(--font-ui); font-size: 22px; font-weight: 800; margin: 0;
               letter-spacing: 1.6px; text-transform: uppercase; }
   .brand h1 .yr { color: var(--accent); }
@@ -122,6 +122,11 @@
   #yearFilter { font-weight: 700; }
   .topbar-actions .btn, .topbar-actions select { min-height: 38px; display: inline-flex; align-items: center; }
   select:hover, .btn:hover, .import:hover { border-color: var(--accent); }
+  /* Settled-grey custom chevron on every select (the native black up/down arrow is
+     nearly invisible on the dark surface). appearance:none swaps it for our own SVG. */
+  select { -webkit-appearance: none; -moz-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 5 6 2.5 9 5M3 7 6 9.5 9 7' fill='none' stroke='%23647294' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 11px center; background-size: 12px; padding-right: 30px; }
   .year-input { background: var(--surface); border: 1px solid var(--border); border-radius: 9px;
                 padding: 8px 10px; color: var(--ink); font-size: 13.5px; width: 92px;
                 font-variant-numeric: tabular-nums; }
@@ -192,8 +197,22 @@
   .field input[type="date"]::-webkit-datetime-edit { color: var(--ink-faint); }
   .field input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); opacity: .6; cursor: pointer; }
   .field input:focus, .field select:focus { border-color: var(--accent); outline: none; }
+  /* Re-apply the settled-grey chevron on form selects (the .field rule's background
+     shorthand above resets background-image, so it must be restored after it). */
+  .field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 5 6 2.5 9 5M3 7 6 9.5 9 7' fill='none' stroke='%23647294' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 11px center; background-size: 12px; padding-right: 30px; }
   .field input::placeholder { color: var(--ink-faint); }
   .form-actions { grid-column: 1 / -1; display: flex; gap: 10px; }
+  /* Buy / Sell segmented toggle above the add-trade form. */
+  .bs-toggle { display: inline-flex; gap: 4px; margin-top: 14px; background: var(--surface-2);
+               border: 1px solid var(--border); border-radius: 10px; padding: 4px; }
+  .bs-btn { background: transparent; border: 0; border-radius: 7px; padding: 7px 22px; cursor: pointer;
+            font-size: 12.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+            color: var(--ink-soft); }
+  .bs-btn:hover { color: var(--ink); }
+  .bs-btn.active[data-mode="buy"]  { background: var(--gain); color: #04140b; }
+  .bs-btn.active[data-mode="sell"] { background: var(--loss); color: #1a0606; }
+  .sell-hint { grid-column: 1 / -1; font-size: 12px; color: var(--ink-faint); margin: -4px 0 2px; }
 
   /* ---------- tables ---------- */
   .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -329,7 +348,7 @@
 <div class="app">
   <header class="topbar">
     <div class="brand">
-      <span class="mark" aria-hidden="true"><svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x=".5" y=".5" width="35" height="35" rx="8.5" fill="#141d33" stroke="#2FD3E1" stroke-opacity=".35"/><g><rect x="8" y="20" width="6" height="8" rx="1.5" fill="#FF5C72"/><rect x="15" y="14" width="6" height="14" rx="1.5" fill="#2FD3E1"/><rect x="22" y="9" width="6" height="19" rx="1.5" fill="#2FE79B"/></g></svg></span>
+      <span class="mark" aria-hidden="true"><img src="icon-512.png" alt=""></span>
       <div>
         <h1><span class="yr">P&amp;L</span></h1>
         <p class="tagline">Monthly trading journal</p>
@@ -359,20 +378,41 @@
   <section class="card">
     <details class="addform" id="addDetails" open>
       <summary>Add a trade</summary>
-      <form class="form-grid" id="tradeForm">
-        <div class="field"><label for="f-open">Date opened</label><input type="date" id="f-open" required></div>
-        <div class="field"><label for="f-symbol">Symbol</label><input type="text" id="f-symbol" placeholder="IONQ" required></div>
-        <div class="field"><label for="f-dir">Direction</label>
-          <select id="f-dir"><option value="long">Long</option><option value="short">Short</option></select></div>
-        <div class="field"><label for="f-qty">Quantity</label><input type="number" id="f-qty" step="any" min="0" placeholder="10" required></div>
-        <div class="field"><label for="f-entry">Entry price</label><input type="number" id="f-entry" step="any" min="0" placeholder="36.42" required></div>
-        <div class="field"><label for="f-exit">Exit price <span style="text-transform:none;color:var(--ink-faint)">(blank = open)</span></label><input type="number" id="f-exit" step="any" min="0" placeholder="41.10"></div>
-        <div class="field"><label for="f-close">Date closed</label><input type="date" id="f-close"></div>
-        <div class="field"><label for="f-exitqty">Exit qty <span style="text-transform:none;color:var(--ink-faint)">(blank = all)</span></label><input type="number" id="f-exitqty" step="any" min="0" placeholder="e.g. 3000"></div>
-        <div class="field wide"><label for="f-strategy">Strategy / setup</label><input type="text" id="f-strategy" placeholder="Momentum breakout"></div>
-        <div class="field wide"><label for="f-notes">Notes</label><input type="text" id="f-notes" placeholder="Trailed the 100-SMA"></div>
+
+      <div class="bs-toggle" id="bsToggle" role="tablist" aria-label="Buy or sell">
+        <button type="button" class="bs-btn active" data-mode="buy"  aria-selected="true">Buy</button>
+        <button type="button" class="bs-btn"        data-mode="sell" aria-selected="false">Sell</button>
+      </div>
+
+      <!-- BUY: opens (or adds to) a position. Lands in Current holdings. -->
+      <form class="form-grid" id="buyForm">
+        <div class="field"><label for="b-open">Date</label><input type="date" id="b-open" required></div>
+        <div class="field"><label for="b-symbol">Symbol</label><input type="text" id="b-symbol" placeholder="IONQ" required></div>
+        <div class="field"><label for="b-dir">Direction</label>
+          <select id="b-dir"><option value="long">Long</option><option value="short">Short</option></select></div>
+        <div class="field"><label for="b-qty">Quantity</label><input type="number" id="b-qty" step="any" min="0" placeholder="10" required></div>
+        <div class="field"><label for="b-entry">Entry price</label><input type="number" id="b-entry" step="any" min="0" placeholder="36.42" required></div>
+        <div class="field wide"><label for="b-strategy">Strategy / setup</label><input type="text" id="b-strategy" placeholder="Momentum breakout"></div>
+        <div class="field wide"><label for="b-notes">Notes</label><input type="text" id="b-notes" placeholder="Trailed the 100-SMA"></div>
         <div class="form-actions">
-          <button type="submit" class="btn primary">Add trade</button>
+          <button type="submit" class="btn primary">Add buy → holdings</button>
+          <button type="reset" class="btn">Clear</button>
+        </div>
+      </form>
+
+      <!-- SELL: closes shares of an existing holding. Lands in All trades. -->
+      <form class="form-grid" id="sellForm" hidden>
+        <p class="sell-hint" id="sellHint">Pick a position you already hold — the buy details fill in automatically.</p>
+        <div class="field wide"><label for="s-holding">Position to sell</label>
+          <select id="s-holding" required></select></div>
+        <div class="field"><label for="s-close">Date sold</label><input type="date" id="s-close" required></div>
+        <div class="field"><label for="s-qty">Quantity <span style="text-transform:none;color:var(--ink-faint)">(blank = all)</span></label><input type="number" id="s-qty" step="any" min="0" placeholder="all"></div>
+        <div class="field"><label for="s-exit">Exit price</label><input type="number" id="s-exit" step="any" min="0" placeholder="41.10" required></div>
+        <div class="field"><label for="s-entry">Entry price <span style="text-transform:none;color:var(--ink-faint)">(from holding)</span></label><input type="number" id="s-entry" step="any" min="0" placeholder="36.42"></div>
+        <div class="field wide"><label for="s-strategy">Strategy / setup</label><input type="text" id="s-strategy" placeholder="Momentum breakout"></div>
+        <div class="field wide"><label for="s-notes">Notes</label><input type="text" id="s-notes" placeholder="Hit target, trimmed"></div>
+        <div class="form-actions">
+          <button type="submit" class="btn primary">Log sell → all trades</button>
           <button type="reset" class="btn">Clear</button>
         </div>
       </form>
@@ -664,6 +704,7 @@
     renderTrades();
     renderHoldings();
     renderContrib();
+    if (typeof populateSellHoldings === "function") populateSellHoldings();
   }
 
   function contribYear() {
@@ -1142,30 +1183,103 @@
     persist(); render();
   }
 
-  // ---------- add trade ----------
-  document.getElementById("tradeForm").addEventListener("submit", function (e) {
+  // ---------- add trade (Buy / Sell) ----------
+  var buyForm = document.getElementById("buyForm"), sellForm = document.getElementById("sellForm");
+
+  // Buy/Sell segmented toggle: show one form at a time.
+  Array.prototype.forEach.call(document.querySelectorAll("#bsToggle .bs-btn"), function (btn) {
+    btn.addEventListener("click", function () {
+      var mode = btn.getAttribute("data-mode");
+      Array.prototype.forEach.call(document.querySelectorAll("#bsToggle .bs-btn"), function (b) {
+        var on = b === btn; b.classList.toggle("active", on); b.setAttribute("aria-selected", on ? "true" : "false");
+      });
+      buyForm.hidden = mode !== "buy";
+      sellForm.hidden = mode !== "sell";
+      if (mode === "sell") populateSellHoldings();
+    });
+  });
+
+  // Fill the Sell dropdown from current holdings — one option per open position, so a
+  // next-day sell never needs the buy re-entered.
+  function populateSellHoldings() {
+    var sel = document.getElementById("s-holding");
+    if (!sel) return;
+    var prev = sel.value;
+    if (!holdings.length) {
+      sel.innerHTML = '<option value="">No open positions to sell</option>';
+      document.getElementById("sellHint").textContent = "No open positions yet — log a Buy first.";
+      prefillSellFromHolding();
+      return;
+    }
+    document.getElementById("sellHint").textContent = "Pick a position you already hold — the buy details fill in automatically.";
+    sel.innerHTML = holdings.map(function (h) {
+      var sh = Math.round((Number(h.shares) || 0) * 1e4) / 1e4;
+      var cost = (h.cost === "" || h.cost == null) ? null : Number(h.cost);
+      return '<option value="' + esc(h.id) + '">' + esc(h.symbol) + ' — ' + sh + ' sh' +
+             (cost != null ? ' @ ' + money(cost, 2) : '') + '</option>';
+    }).join("");
+    if (prev && holdings.some(function (h) { return h.id === prev; })) sel.value = prev;
+    prefillSellFromHolding();
+  }
+
+  // When a position is chosen, prefill entry price (avg cost) + the quantity placeholder.
+  function prefillSellFromHolding() {
+    var sel = document.getElementById("s-holding");
+    var h = holdings.filter(function (z) { return z.id === sel.value; })[0];
+    var qEl = document.getElementById("s-qty"), eEl = document.getElementById("s-entry");
+    if (!h) { eEl.value = ""; qEl.placeholder = "all"; return; }
+    var cost = (h.cost === "" || h.cost == null) ? "" : Number(h.cost);
+    eEl.value = cost;
+    qEl.placeholder = (Math.round((Number(h.shares) || 0) * 1e4) / 1e4) + " (all)";
+  }
+  document.getElementById("s-holding").addEventListener("change", prefillSellFromHolding);
+
+  // BUY → holdings. Shares add, average cost blends. Remembers open date / direction / setup
+  // so a later Sell reconstructs the full round-trip in All trades.
+  buyForm.addEventListener("submit", function (e) {
     e.preventDefault();
     var g = function (id) { return document.getElementById(id).value; };
-    var openDate = g("f-open"), sym = g("f-symbol").trim().toUpperCase();
-    var qty = parseFloat(g("f-qty")), entry = parseFloat(g("f-entry"));
+    var openDate = g("b-open"), sym = g("b-symbol").trim().toUpperCase();
+    var qty = parseFloat(g("b-qty")), entry = parseFloat(g("b-entry"));
     if (!openDate || !sym || !(qty > 0) || !(entry >= 0)) return;
-    var dir = g("f-dir"), strategy = g("f-strategy").trim(), notes = g("f-notes").trim();
-    var exit = g("f-exit") === "" ? "" : parseFloat(g("f-exit"));
-    var closeDate = g("f-close");
-    var closing = exit !== "" && closeDate !== "";           // a sell needs a price + a date
-
-    if (closing) {
-      // A SELL: record the realized P&L in the trade log, and subtract the shares from the holding.
-      trades.push({ id: uid(), openDate: openDate, qty: qty, exit: exit, closeDate: closeDate,
-        symbol: sym, direction: dir, entry: entry, fees: 0, strategy: strategy, notes: notes });
-      upsertHolding(sym, -qty);
-      persist();
-    } else {
-      // A BUY: post straight into the holding — shares add up, average cost blends. No open row.
-      upsertHolding(sym, qty, entry, [strategy, notes].filter(Boolean).join(" · "));
+    var dir = g("b-dir"), strategy = g("b-strategy").trim(), notes = g("b-notes").trim();
+    upsertHolding(sym, qty, entry, [strategy, notes].filter(Boolean).join(" · "));
+    var h = holdings.filter(function (z) { return String(z.symbol || "").trim().toUpperCase() === sym; })[0];
+    if (h) {
+      if (!h.openDate) h.openDate = openDate;   // first buy's date anchors the position
+      h.direction = dir;
+      if (strategy) h.strategy = strategy;
+      persistH();
     }
     render();
     this.reset();
+  });
+
+  // SELL → all trades. Closes shares of the chosen holding, records realized P&L, subtracts
+  // from the position (a full sell removes it). No buy re-entry required.
+  sellForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var g = function (id) { return document.getElementById(id).value; };
+    var h = holdings.filter(function (z) { return z.id === g("s-holding"); })[0];
+    if (!h) return;
+    var closeDate = g("s-close"), exit = parseFloat(g("s-exit"));
+    if (!closeDate || !(exit >= 0)) return;
+    var avail = Number(h.shares) || 0;
+    var qtyRaw = g("s-qty");
+    var qty = qtyRaw === "" ? avail : parseFloat(qtyRaw);
+    if (!(qty > 0)) return;
+    if (qty > avail) qty = avail;                                   // never sell more than held
+    var entryRaw = g("s-entry");
+    var entry = entryRaw === "" ? ((h.cost === "" || h.cost == null) ? "" : Number(h.cost)) : parseFloat(entryRaw);
+    var sym = String(h.symbol || "").trim().toUpperCase();
+    trades.push({ id: uid(), openDate: h.openDate || "", closeDate: closeDate,
+      symbol: sym, direction: h.direction || "long", qty: qty, entry: entry, exit: exit, fees: 0,
+      strategy: g("s-strategy").trim() || h.strategy || "", notes: g("s-notes").trim() });
+    upsertHolding(sym, -qty);
+    persist();
+    render();
+    this.reset();
+    populateSellHoldings();
   });
 
   // ---------- add realized-P&L entry ----------
