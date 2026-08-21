@@ -182,6 +182,7 @@
   .addform summary::before { content: "＋ "; font-weight: 700; }
   .addform[open] summary::before { content: "－ "; }
   .form-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }
+  .form-grid[hidden] { display: none; }   /* grid display would otherwise override the hidden attr */
   .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
   .field.wide { grid-column: span 2; }
   .field label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-soft); }
@@ -410,7 +411,6 @@
         <div class="field"><label for="s-close">Date sold</label><input type="date" id="s-close" required></div>
         <div class="field"><label for="s-qty">Quantity <span style="text-transform:none;color:var(--ink-faint)">(blank = all)</span></label><input type="number" id="s-qty" step="any" min="0" placeholder="all"></div>
         <div class="field"><label for="s-exit">Exit price</label><input type="number" id="s-exit" step="any" min="0" placeholder="41.10" required></div>
-        <div class="field"><label for="s-entry">Entry price <span style="text-transform:none;color:var(--ink-faint)">(from holding)</span></label><input type="number" id="s-entry" step="any" min="0" placeholder="36.42"></div>
         <div class="field wide"><label for="s-strategy">Strategy / setup</label><input type="text" id="s-strategy" placeholder="Momentum breakout"></div>
         <div class="field wide"><label for="s-notes">Notes</label><input type="text" id="s-notes" placeholder="Hit target, trimmed"></div>
         <div class="form-actions">
@@ -1224,15 +1224,13 @@
     prefillSellFromHolding();
   }
 
-  // When a position is chosen, prefill entry price (avg cost) + the quantity placeholder.
+  // When a position is chosen, set the quantity placeholder to the shares held.
+  // Entry price isn't asked for on a sell — it's already known from the buy.
   function prefillSellFromHolding() {
     var sel = document.getElementById("s-holding");
     var h = holdings.filter(function (z) { return z.id === sel.value; })[0];
-    var qEl = document.getElementById("s-qty"), eEl = document.getElementById("s-entry");
-    if (!h) { eEl.value = ""; qEl.placeholder = "all"; return; }
-    var cost = (h.cost === "" || h.cost == null) ? "" : Number(h.cost);
-    eEl.value = cost;
-    qEl.placeholder = (Math.round((Number(h.shares) || 0) * 1e4) / 1e4) + " (all)";
+    var qEl = document.getElementById("s-qty");
+    qEl.placeholder = h ? (Math.round((Number(h.shares) || 0) * 1e4) / 1e4) + " (all)" : "all";
   }
   document.getElementById("s-holding").addEventListener("change", prefillSellFromHolding);
 
@@ -1271,8 +1269,7 @@
     var qty = qtyRaw === "" ? avail : parseFloat(qtyRaw);
     if (!(qty > 0)) return;
     if (qty > avail) qty = avail;                                   // never sell more than held
-    var entryRaw = g("s-entry");
-    var entry = entryRaw === "" ? ((h.cost === "" || h.cost == null) ? "" : Number(h.cost)) : parseFloat(entryRaw);
+    var entry = (h.cost === "" || h.cost == null) ? "" : Number(h.cost);   // entry came from the buy
     var sym = String(h.symbol || "").trim().toUpperCase();
     trades.push({ id: uid(), openDate: h.openDate || "", closeDate: closeDate,
       symbol: sym, direction: h.direction || "long", qty: qty, entry: entry, exit: exit, fees: 0,
