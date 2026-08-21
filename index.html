@@ -1142,7 +1142,9 @@
     });
     if (!list.length) body = '<tr><td colspan="7" class="empty">No trades in this period.</td></tr>';
     document.getElementById("tradesBody").innerHTML = body;
-    var totalPnl = list.reduce(function (s, t) { return s + (compute(t).pnl || 0); }, 0);
+    // Sum the SAME whole-dollar figures shown per row (round each, then add) so the total
+    // always equals the visible rows — not round-of-raw-sum, which can differ by a dollar.
+    var totalPnl = list.reduce(function (s, t) { var p = compute(t).pnl; return s + (typeof p === "number" && !isNaN(p) ? Math.round(p) : 0); }, 0);
     document.getElementById("tradeCount").innerHTML =
       'Total <span class="' + cls(totalPnl) + '">' + signed(totalPnl) + '</span> · ' +
       list.length + (list.length === 1 ? " trade" : " trades");
