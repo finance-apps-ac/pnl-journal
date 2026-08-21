@@ -254,11 +254,12 @@
   .trades-chart svg { display: block; width: 100%; height: auto; }
   /* Lines use non-scaling-stroke (set inline) so they stay a crisp 2px at any width — matching the
      equity curve's weight regardless of how wide the card is. */
-  .gl-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .gl-line { fill: none; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
   .gl-gain { stroke: var(--gain); }
   .gl-loss { stroke: var(--violet); }
-  .gl-area-gain { fill: var(--gain); opacity: .14; }   /* same fill transparency as .eq-area */
-  .gl-area-loss { fill: var(--violet); opacity: .14; }
+  /* Cyan/teal transparent fill to match the equity curve (lines stay green/purple). */
+  .gl-area-gain { fill: var(--accent); opacity: .14; }
+  .gl-area-loss { fill: var(--accent); opacity: .14; }
   .gl-dot { fill: var(--gain); }                       /* always green — stay positive */
   /* Right-side $ labels rendered as fixed-size HTML (same 10px mono as .axis-text) so they never scale up. */
   .gl-labels { position: absolute; top: 0; right: 0; width: 50px; height: 100%; pointer-events: none; }
@@ -1095,7 +1096,7 @@
         '<path class="gl-area-gain" d="' + gArea + '"/>' +
         '<path class="gl-line gl-loss"' + nsw + ' d="' + lLine + '"/>' +
         '<path class="gl-line gl-gain"' + nsw + ' d="' + gLine + '"/>' +
-        '<circle class="gl-dot" cx="' + x(n - 1).toFixed(1) + '" cy="' + y(lastV).toFixed(1) + '" r="3" vector-effect="non-scaling-stroke"/>' +
+        '<circle class="gl-dot" cx="' + x(n - 1).toFixed(1) + '" cy="' + y(lastV).toFixed(1) + '" r="4.5"/>' +
       '</svg>' +
       '<div class="gl-labels">' + labels + '</div>';
   }
