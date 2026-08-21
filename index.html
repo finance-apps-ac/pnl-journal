@@ -1215,10 +1215,7 @@
     }
     document.getElementById("sellHint").textContent = "Pick a position you already hold — the buy details fill in automatically.";
     sel.innerHTML = holdings.map(function (h) {
-      var sh = Math.round((Number(h.shares) || 0) * 1e4) / 1e4;
-      var cost = (h.cost === "" || h.cost == null) ? null : Number(h.cost);
-      return '<option value="' + esc(h.id) + '">' + esc(h.symbol) + ' — ' + sh + ' sh' +
-             (cost != null ? ' @ ' + money(cost, 2) : '') + '</option>';
+      return '<option value="' + esc(h.id) + '">' + esc(h.symbol) + '</option>';
     }).join("");
     if (prev && holdings.some(function (h) { return h.id === prev; })) sel.value = prev;
     prefillSellFromHolding();
