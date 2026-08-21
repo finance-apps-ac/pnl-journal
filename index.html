@@ -1291,6 +1291,22 @@
   }
   sellForm.addEventListener("reset", function () { setTimeout(populateSellHoldings, 0); });
 
+  // Native <input type="date"> can't show a placeholder and renders empty/narrow when blank.
+  // Start it as a text field with a gray example date, then swap to a real date picker on focus.
+  function datePlaceholder(id, example) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.type = "text"; el.placeholder = example; el.setAttribute("inputmode", "numeric");
+    el.addEventListener("focus", function () {
+      el.type = "date";
+      if (el.showPicker) { try { el.showPicker(); } catch (e) {} }
+    });
+    el.addEventListener("blur", function () { if (!el.value) el.type = "text"; });
+  }
+  datePlaceholder("b-open", "08 / 21 / 2026");
+  datePlaceholder("s-close", "08 / 21 / 2026");
+  datePlaceholder("p-date", "08 / 21 / 2026");
+
   // BUY → holdings. Shares add, average cost blends. Remembers open date / direction / setup
   // so a later Sell reconstructs the full round-trip in All trades.
   buyForm.addEventListener("submit", function (e) {
