@@ -214,7 +214,10 @@
             color: var(--ink-soft); }
   .bs-btn:hover { color: var(--ink); }
   .bs-btn.active[data-mode="buy"]  { background: var(--gain); color: #04140b; }
-  .bs-btn.active[data-mode="sell"] { background: var(--loss); color: #1a0606; }
+  .bs-btn.active[data-mode="sell"] { background: var(--violet); color: #150a30; }
+  /* Recolor the native dropdown's selected-option highlight from coral to violet
+     (red stays reserved for actual losses). */
+  #sellForm, #s-holding { accent-color: var(--violet); }
   .sell-hint { grid-column: 1 / -1; font-size: 12px; color: var(--ink-faint); margin: -4px 0 2px; }
 
   /* ---------- tables ---------- */
