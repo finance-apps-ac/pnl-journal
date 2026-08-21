@@ -482,7 +482,15 @@
       + "#sync-badge button:disabled{opacity:.5;cursor:default;}"
       + "#sync-delete{color:#8494ac !important;margin-left:2px;}"
       + "#sync-delete:hover{color:#FF5C72 !important;}"
-      + "#sync-dot{width:7px;height:7px;border-radius:50%;background:#2FE79B;}";
+      + "#sync-dot{width:7px;height:7px;border-radius:50%;background:#2FE79B;flex:none;}"
+      // On phones the full pill (email + Log out + Delete) spans the form; collapse it to a small
+      // dot+email corner pill and reveal the actions only on tap.
+      + "@media (max-width:560px){"
+      + "#sync-badge{max-width:calc(100vw - 28px);}"
+      + "#sync-badge.sync-collapsed{cursor:pointer;}"
+      + "#sync-badge.sync-collapsed>button,#sync-badge.sync-collapsed>#sync-pending{display:none;}"
+      + "#sync-badge>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:56vw;}"
+      + "}";
     var s = document.createElement("style"); s.textContent = css; document.head.appendChild(s);
   }
 
@@ -651,6 +659,14 @@
     document.body.appendChild(b);
     document.getElementById("sync-out").onclick = logout;
     document.getElementById("sync-delete").onclick = deleteAccount;
+    // On phones, start collapsed (dot + email only); tapping the pill reveals Log out / Delete.
+    if (window.matchMedia && window.matchMedia("(max-width:560px)").matches) {
+      b.classList.add("sync-collapsed");
+      b.addEventListener("click", function (e) {
+        if (e.target.tagName === "BUTTON") return;   // let the action buttons do their thing
+        b.classList.toggle("sync-collapsed");
+      });
+    }
     updatePendingBadge();
   }
   // Visible "• Pending" chip whenever this device holds edits not yet confirmed in the cloud.
