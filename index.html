@@ -357,6 +357,11 @@
   .contrib-donut svg { width: 100%; height: auto; display: block; }
   .donut-total { fill: var(--ink); font-family: var(--font-mono); font-size: 27px; font-weight: 700; }
   .donut-sub { fill: var(--ink-faint); font-size: 11px; letter-spacing: 1px; }
+  .cmonth { display: flex; align-items: center; gap: 10px; }
+  .cbadge { width: 26px; height: 26px; border-radius: 8px; flex: none; display: grid; place-items: center; font-family: var(--font-mono); font-weight: 700; font-size: 15px; }
+  .cmonth .t-date { flex: none; white-space: nowrap; }
+  .cbar { flex: 1 1 auto; min-width: 30px; height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+  .cbar-fill { display: block; height: 100%; border-radius: 999px; }
   .cdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 9px; vertical-align: middle; }
 
   .foot { text-align: center; color: var(--ink-faint); font-size: 12px; margin-top: 32px; }
@@ -750,26 +755,44 @@
     if (y === "all") { var ys = years(); y = ys.length ? ys[0] : String(new Date().getFullYear()); }
     return y;
   }
-  function contribColor(i) {  // 0..11 → bright green → blue → purple
-    var stops = [[47, 231, 155], [74, 163, 255], [156, 107, 255]];
-    var p = (i / 11) * (stops.length - 1), k = Math.min(Math.floor(p), stops.length - 2), t = p - k;
-    var a = stops[k], b = stops[k + 1];
-    return "rgb(" + Math.round(a[0] + (b[0] - a[0]) * t) + "," +
-                    Math.round(a[1] + (b[1] - a[1]) * t) + "," +
-                    Math.round(a[2] + (b[2] - a[2]) * t) + ")";
+  function contribRGB(i) {  // 0..11 → purple → blue → cyan → green (cyan-weighted)
+    var t = i / 11;
+    var stops = [[0.00, 156, 107, 255], [0.20, 74, 163, 255], [0.50, 47, 211, 225], [0.82, 45, 220, 190], [1.00, 60, 235, 150]];
+    for (var s = 0; s < stops.length - 1; s++) {
+      var a = stops[s], b = stops[s + 1];
+      if (t <= b[0]) {
+        var f = (t - a[0]) / ((b[0] - a[0]) || 1);
+        return [Math.round(a[1] + (b[1] - a[1]) * f), Math.round(a[2] + (b[2] - a[2]) * f), Math.round(a[3] + (b[3] - a[3]) * f)];
+      }
+    }
+    var z = stops[stops.length - 1]; return [z[1], z[2], z[3]];
   }
+  function contribColor(i) { var c = contribRGB(i); return "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")"; }
+  function contribRGBA(i, a) { var c = contribRGB(i); return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + a + ")"; }
   function renderContrib() {
-    var y = contribYear(), tot = 0, body = "", funded = [];
+    var y = contribYear(), tot = 0, body = "", vals = [], maxV = 0;
+    for (var m = 1; m <= 12; m++) {
+      var mk = y + "-" + (m < 10 ? "0" : "") + m;
+      var mr = contrib[mk];
+      var mn = (mr === "" || mr == null) ? null : Number(mr);
+      if (mn != null) tot += mn;
+      var mv = (mn != null && mn > 0) ? mn : 0;
+      vals.push(mn != null ? mn : 0);
+      if (mv > maxV) maxV = mv;
+    }
     for (var mo = 1; mo <= 12; mo++) {
       var key = y + "-" + (mo < 10 ? "0" : "") + mo;
       var raw = contrib[key];
       var num = (raw === "" || raw == null) ? null : Number(raw);
-      var has = num != null && num > 0;
-      funded.push(has);
-      if (num != null) tot += num;
-      var dot = has ? contribColor(mo - 1) : "transparent";
+      var v = (num != null && num > 0) ? num : 0;
+      var col = contribColor(mo - 1);
+      var pct = maxV > 0 ? (v > 0 ? Math.max(10, Math.round(Math.sqrt(v / maxV) * 100)) : 0) : 0;
+      var badge = '<span class="cbadge" style="background:' + contribRGBA(mo - 1, 0.15) + ';border:1px solid ' + contribRGBA(mo - 1, 0.40) + ';color:' + col + '">$</span>';
+      var fill = v > 0 ? '<span class="cbar-fill" style="width:' + pct + '%;background:linear-gradient(90deg,' + contribRGBA(mo - 1, 0.35) + ',' + col + ')"></span>' : '';
       body += '<tr>' +
-        '<td class="l"><span class="cdot" style="background:' + dot + '"></span><span class="t-date"><span class="d">' + MON[mo - 1] + '</span><span class="y">' + y + '</span></span></td>' +
+        '<td class="l"><div class="cmonth">' + badge +
+          '<span class="t-date"><span class="d">' + MON[mo - 1] + '</span><span class="y">' + y + '</span></span>' +
+          '<span class="cbar">' + fill + '</span></div></td>' +
         '<td class="num"><input class="cost-input" type="number" step="any" data-contrib="' + key +
           '" value="' + (num == null ? "" : esc(num)) + '" placeholder="—"></td>' +
       '</tr>';
@@ -777,7 +800,7 @@
     body += '<tr class="total-row"><td class="l" style="color:var(--accent)">Total ' + y + '</td><td class="num">' + money(tot) + '</td></tr>';
     document.getElementById("contribBody").innerHTML = body;
     document.getElementById("contribTotal").textContent = money(tot) + " added · " + y;
-    renderContribDonut(y, funded, tot);
+    renderContribDonut(y, vals, tot);
     Array.prototype.forEach.call(document.querySelectorAll("[data-contrib]"), function (inp) {
       inp.addEventListener("change", function () {
         var k = inp.getAttribute("data-contrib");
@@ -786,26 +809,28 @@
       });
     });
   }
-  function renderContribDonut(y, funded, tot) {
+  function renderContribDonut(y, vals, tot) {
     var host = document.getElementById("contribDonut");
     if (!host) return;
-    var cx = 120, cy = 120, r = 88, w = 19, C = 2 * Math.PI * r, seg = C / 12, arcs = "", ticks = "";
-    for (var i = 0; i < 12; i++) {
-      arcs += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + contribColor(i) +
-        '" stroke-opacity="' + (funded[i] ? 1 : 0.16) + '" stroke-width="' + w +
-        '" stroke-dasharray="' + (seg - 1.5).toFixed(2) + ' ' + (C - seg + 1.5).toFixed(2) +
-        '" stroke-dashoffset="' + (-(i * seg + 0.75)).toFixed(2) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')"/>';
+    var cx = 120, cy = 120, r = 88, w = 19, C = 2 * Math.PI * r, sumW = 0, arcs = "";
+    // square-root weighting so one huge month doesn't swallow the ring — every month stays visible
+    for (var s = 0; s < 12; s++) { if (vals[s] > 0) sumW += Math.sqrt(vals[s]); }
+    if (sumW <= 0) {
+      arcs = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="var(--border)" stroke-opacity="0.5" stroke-width="' + w + '"/>';
+    } else {
+      var acc = 0, gap = 1.4;   // hairline gap so neighbouring slices read as distinct months
+      for (var i = 0; i < 12; i++) {
+        if (vals[i] <= 0) continue;
+        var len = (Math.sqrt(vals[i]) / sumW) * C;
+        var dash = Math.max(len - gap, 1);
+        arcs += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + contribColor(i) +
+          '" stroke-width="' + w + '" stroke-linecap="round" stroke-dasharray="' + dash.toFixed(2) + ' ' + (C - dash).toFixed(2) +
+          '" stroke-dashoffset="' + (-(acc + gap / 2)).toFixed(2) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')"/>';
+        acc += len;
+      }
     }
-    for (var k = 0; k < 48; k++) {
-      var ang = (k / 48) * 2 * Math.PI - Math.PI / 2;
-      var major = (k % 4 === 0), half = major ? 6 : 3;
-      var xa = cx + (r - half) * Math.cos(ang), ya = cy + (r - half) * Math.sin(ang);
-      var xb = cx + (r + half) * Math.cos(ang), yb = cy + (r + half) * Math.sin(ang);
-      ticks += '<line x1="' + xa.toFixed(1) + '" y1="' + ya.toFixed(1) + '" x2="' + xb.toFixed(1) + '" y2="' + yb.toFixed(1) +
-        '" stroke="var(--bg)" stroke-width="' + (major ? 1.8 : 1) + '" stroke-linecap="round" stroke-opacity="' + (major ? 0.9 : 0.6) + '"/>';
-    }
-    host.innerHTML = '<svg viewBox="0 0 240 240" role="img" aria-label="Monthly contributions dial for ' + y + '">' +
-      arcs + ticks +
+    host.innerHTML = '<svg viewBox="0 0 240 240" role="img" aria-label="Monthly contributions for ' + y + '">' +
+      arcs +
       '<text x="120" y="114" text-anchor="middle" class="donut-total">' + money(tot) + '</text>' +
       '<text x="120" y="136" text-anchor="middle" class="donut-sub">' + y + '</text>' +
       '</svg>';
