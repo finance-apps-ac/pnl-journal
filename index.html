@@ -34,6 +34,7 @@
 <!-- Cross-device sync: login + cloud storage. Must load before the app script. -->
 <script>window.SYNC_CONFIG = { app: "pnl", name: "P&L", keys: ["ledger.trades.v1", "ledger.holdings.v1", "ledger.contrib.v1", "ledger.years.v1"] };</script>
 <script src="supabase-sync.js?v=21"></script>
+<script src="native.js?v=1"></script>
 <style>
   /* ---------- reset (self-sufficient when opened as a local file) ---------- */
   *, *::before, *::after { box-sizing: border-box; }
@@ -1234,6 +1235,7 @@
   // Buy/Sell segmented toggle: show one form at a time.
   Array.prototype.forEach.call(document.querySelectorAll("#bsToggle .bs-btn"), function (btn) {
     btn.addEventListener("click", function () {
+      if (window.nativeTap) window.nativeTap("LIGHT");   // native haptic tap on the Buy/Sell switch
       var mode = btn.getAttribute("data-mode");
       Array.prototype.forEach.call(document.querySelectorAll("#bsToggle .bs-btn"), function (b) {
         var on = b === btn; b.classList.toggle("active", on); b.setAttribute("aria-selected", on ? "true" : "false");
@@ -1337,6 +1339,7 @@
       if (strategy) h.strategy = strategy;
       persistH();
     }
+    if (window.nativeTap) window.nativeTap("MEDIUM");   // buy logged — success haptic
     render();
     this.reset();
   });
@@ -1362,6 +1365,7 @@
       strategy: g("s-strategy").trim() || h.strategy || "", notes: g("s-notes").trim() });
     upsertHolding(sym, -qty);
     persist();
+    if (window.nativeTap) window.nativeTap("MEDIUM");   // sell logged — success haptic
     render();
     this.reset();
     populateSellHoldings();
