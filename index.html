@@ -416,9 +416,9 @@
     <details class="addform" id="addDetails" open>
       <summary>Add a trade</summary>
 
-      <div class="bs-toggle" id="bsToggle" role="tablist" aria-label="Buy or sell">
-        <button type="button" class="bs-btn active" data-mode="buy"  aria-selected="true">Buy</button>
-        <button type="button" class="bs-btn"        data-mode="sell" aria-selected="false">Sell</button>
+      <div class="bs-toggle" id="bsToggle" role="tablist" aria-label="Bought or sold">
+        <button type="button" class="bs-btn active" data-mode="buy"  aria-selected="true">Bought</button>
+        <button type="button" class="bs-btn"        data-mode="sell" aria-selected="false">Sold</button>
       </div>
 
       <!-- BUY: opens (or adds to) a position. Lands in Current holdings. -->
@@ -432,14 +432,14 @@
         <div class="field wide"><label for="b-strategy">Strategy / setup</label><input type="text" id="b-strategy" placeholder="Momentum breakout"></div>
         <div class="field wide"><label for="b-notes">Notes</label><input type="text" id="b-notes" placeholder="Trailed the 100-SMA"></div>
         <div class="form-actions">
-          <button type="submit" class="btn primary">Add buy → holdings</button>
+          <button type="submit" class="btn primary">Log buy → holdings</button>
           <button type="reset" class="btn">Clear</button>
         </div>
       </form>
 
       <!-- SELL: closes shares of an existing holding. Lands in All trades. -->
       <form class="form-grid" id="sellForm" hidden>
-        <p class="sell-hint" id="sellHint">Pick a position you already hold — the buy details fill in automatically.</p>
+        <p class="sell-hint" id="sellHint">Pick a position you already hold — the purchase details fill in automatically.</p>
         <div class="field wide"><label for="s-holding-btn">Position to sell</label>
           <div class="cdd" id="s-holding-dd">
             <button type="button" class="cdd-btn" id="s-holding-btn" aria-haspopup="listbox" aria-expanded="false">Select…</button>
@@ -1312,7 +1312,7 @@
       ddSelect(""); ddOpen(false);
       return;
     }
-    document.getElementById("sellHint").textContent = "Pick a position you already hold — the buy details fill in automatically.";
+    document.getElementById("sellHint").textContent = "Pick a position you already hold — the purchase details fill in automatically.";
     ddList.innerHTML = holdings.map(function (h) {
       return '<li role="option" data-id="' + esc(h.id) + '">' + esc(h.symbol) + '</li>';
     }).join("");
