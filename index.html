@@ -1050,7 +1050,16 @@
   function renderMonthlyChart(rows, yr) {
     var host = document.getElementById("monthlyChart");
     document.getElementById("monthlyYearLabel").textContent = yr === "all" ? "all months" : yr;
-    var agg = monthlyAgg(rows);
+    var aggRaw = monthlyAgg(rows);
+    var agg;
+    if (yr && yr !== "all") {
+      // Show the whole year Jan–Dec (empty months as zero bars), not just the months with trades.
+      var byK = {}; aggRaw.forEach(function (o) { byK[o.k] = o; });
+      agg = [];
+      for (var mo = 1; mo <= 12; mo++) { var mk = yr + "-" + (mo < 10 ? "0" : "") + mo; agg.push(byK[mk] || { k: mk, net: 0, n: 0 }); }
+    } else {
+      agg = aggRaw;
+    }
     if (!agg.length) { host.innerHTML = '<div class="empty">No monthly P&L to chart yet.</div>'; return; }
     var W = 360, H = 230, padL = 44, padR = 10, padT = 12, padB = 34;
     var vals = agg.map(function (o) { return o.net; });
