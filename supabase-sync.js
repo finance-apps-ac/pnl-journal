@@ -105,6 +105,7 @@
       if (session) currentToken = session.access_token;
       if (recovering) { renderSetNewPassword(); return; }
       if (session) onLogin(session.user);
+      else if (isDemo()) enterDemo(false);   // resume guest demo across reloads (data already seeded)
       else showLogin();
     });
     sb.auth.onAuthStateChange(function (ev, session) {
@@ -627,7 +628,10 @@
       + ".set-danger{display:none;padding:12px;border:1px solid var(--cr);border-radius:12px;}"
       + ".set-danger p{font-size:12.5px;color:var(--sf);margin:0 0 10px;line-height:1.5;}"
       + ".set-cf{display:flex;gap:8px;}"
-      + ".set-cf .set-btn{flex:1;}";
+      + ".set-cf .set-btn{flex:1;}"
+      + "#sync-demo-wrap{margin-top:14px;}"
+      + "#sync-demo{display:block;width:100%;box-sizing:border-box;padding:12px;border:1px solid rgba(127,140,170,.4);border-radius:12px;background:transparent;color:#2FD3E1;font:600 15px -apple-system,sans-serif;cursor:pointer;}"
+      + "#sync-demo:hover{border-color:#2FD3E1;}";
   }
 
   function buildOverlay() {
@@ -668,8 +672,11 @@
           (isSignup ? "Already have an account? " : "New here? ") +
           '<a id="sync-swap">' + (isSignup ? "Log in" : "Create an account") + '</a>' +
         '</div>' +
-        (isSignup ? '' : '<div id="sync-forgot"><a id="sync-forgot-link">Forgot password?</a></div>');
+        (isSignup ? '' : '<div id="sync-forgot"><a id="sync-forgot-link">Forgot password?</a></div>') +
+        (window.DEMO_SEED ? '<div id="sync-demo-wrap"><button type="button" id="sync-demo">Try the demo — no sign-up</button></div>' : '');
       document.getElementById("sync-primary").onclick = function () { doAuth(authMode); };
+      var demoBtn = document.getElementById("sync-demo");
+      if (demoBtn) demoBtn.onclick = function () { enterDemo(true); };
       document.getElementById("sync-swap").onclick = function () { authMode = isSignup ? "login" : "signup"; render(); };
       document.getElementById("sync-pw").onkeydown = function (e) { if (e.key === "Enter") doAuth(authMode); };
       var eye = document.getElementById("sync-eye");
@@ -784,6 +791,45 @@
     else { btn.disabled = false; var l = btn.getAttribute("data-label"); if (l) btn.textContent = l; }
   }
   function hideOverlay() { overlay.style.display = "none"; }
+
+  /* ---------------- guest demo mode (no account, sample data) ---------------- */
+  function isDemo() { try { return localStorage.getItem("__demo_" + cfg.app) === "1"; } catch (e) { return false; } }
+  function enterDemo(seed) {
+    try {
+      if (seed && window.DEMO_SEED) {
+        var S = window.DEMO_SEED;
+        for (var k in S) if (Object.prototype.hasOwnProperty.call(S, k)) origSet(k, JSON.stringify(S[k]));
+      }
+      origSet("__demo_" + cfg.app, "1");
+    } catch (e) {}
+    hideOverlay();
+    if (typeof window.__resyncApply === "function") { try { window.__resyncApply(); } catch (e) {} }
+    // Select the most recent sample year so the whole year shows (P&L has a year picker).
+    try {
+      var sel = document.getElementById("yearFilter");
+      if (sel && sel.options.length) {
+        for (var i = 0; i < sel.options.length; i++) { if (/^\d{4}$/.test(sel.options[i].value)) { sel.value = sel.options[i].value; break; } }
+        sel.dispatchEvent(new Event("change"));
+      }
+    } catch (e) {}
+    showDemoBadge();
+  }
+  function exitDemo() {
+    try {
+      localStorage.removeItem("__demo_" + cfg.app);
+      (cfg.keys || []).forEach(function (k) { origRemove(k); });   // clear the sample data so login is clean
+    } catch (e) {}
+    location.reload();
+  }
+  function showDemoBadge() {
+    if (document.getElementById("sync-badge")) return;
+    var b = document.createElement("div");
+    b.id = "sync-badge";
+    b.innerHTML = '<span id="sync-dot" style="background:#FFB020"></span><span>Demo mode</span>' +
+      '<button id="sync-exitdemo" title="Leave the demo and sign in">Exit demo</button>';
+    document.body.appendChild(b);
+    document.getElementById("sync-exitdemo").onclick = exitDemo;
+  }
 
   function showBadge(email) {
     if (document.getElementById("sync-badge")) return;
