@@ -419,14 +419,8 @@
   // "delete-account" Edge Function (only the service role can remove an auth user); functions.invoke
   // sends the user's own access token, so they can only ever delete themselves.
   function deleteAccount() {
-    if (!sb || !currentUser) return;
-    if (!window.confirm(
-      "Permanently delete your account?\n\nThis erases your login and ALL of your " + (cfg.name || "app") +
-      " data on every device. This cannot be undone."
-    )) return;
-    if (!window.confirm("Are you absolutely sure? There is no way to recover your data afterwards.")) return;
-
-    var btn = document.getElementById("sync-delete");
+    if (!sb || !currentUser) return;                    // the in-panel "Delete forever" IS the confirmation
+    var btn = document.getElementById("set-del-go");
     if (btn) { btn.disabled = true; btn.textContent = "Deleting…"; }
 
     sb.functions.invoke("delete-account", { body: {} }).then(function (r) {
@@ -437,9 +431,106 @@
       alert("Your account and all your data have been permanently deleted.");
       location.reload();
     }).catch(function () {
-      if (btn) { btn.disabled = false; btn.textContent = "Delete account"; }
+      if (btn) { btn.disabled = false; btn.textContent = "Delete forever"; }
       alert("Sorry — we couldn't delete your account just now. Please try again, or email support@financelog.app.");
     });
+  }
+
+  // Change the signed-in email. Supabase sends confirmation links to BOTH the old and new
+  // address; the change only takes effect once confirmed (secure email change).
+  function changeEmail() {
+    if (!sb) return;
+    var inp = document.getElementById("set-email");
+    var okEl = document.getElementById("set-email-ok");
+    var errEl = document.getElementById("set-email-err");
+    var btn = document.getElementById("set-email-save");
+    if (!inp) return;
+    var val = (inp.value || "").trim();
+    if (okEl) okEl.style.display = "none";
+    if (errEl) errEl.textContent = "";
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val)) { if (errEl) errEl.textContent = "Please enter a valid email address."; return; }
+    if (currentUser && val.toLowerCase() === String(currentUser.email || "").toLowerCase()) { if (errEl) errEl.textContent = "That's already your email."; return; }
+    if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+    sb.auth.updateUser({ email: val }).then(function (res) {
+      if (btn) { btn.disabled = false; btn.textContent = "Save"; }
+      if (res && res.error) { if (errEl) errEl.textContent = res.error.message || "Couldn't update your email."; return; }
+      if (okEl) okEl.style.display = "block";
+    }).catch(function (e) {
+      if (btn) { btn.disabled = false; btn.textContent = "Save"; }
+      if (errEl) errEl.textContent = (e && e.message) || "Couldn't update your email.";
+    });
+  }
+
+  /* ---------------- settings panel (shared by both apps) ---------------- */
+  function themeMode() {
+    var a = document.documentElement.getAttribute("data-theme");
+    return (a === "light" || a === "dark") ? a : "system";
+  }
+  function applyTheme(mode) {
+    if (typeof window.__setTheme === "function") { window.__setTheme(mode); }
+    else {
+      var r = document.documentElement;
+      if (mode === "light" || mode === "dark") { r.setAttribute("data-theme", mode); try { localStorage.setItem("theme.pref", mode); } catch (e) {} }
+      else { r.removeAttribute("data-theme"); try { localStorage.removeItem("theme.pref"); } catch (e) {} }
+    }
+    highlightTheme(mode);
+  }
+  function highlightTheme(mode) {
+    var seg = document.getElementById("set-seg");
+    if (!seg) return;
+    Array.prototype.forEach.call(seg.querySelectorAll("button"), function (b) {
+      b.classList.toggle("on", b.getAttribute("data-t") === mode);
+    });
+  }
+  function closeSettings() { var d = document.getElementById("set-scrim"); if (d) d.style.display = "none"; }
+  function refreshSettings() {
+    var em = currentUser ? (currentUser.email || "") : "";
+    var w = document.getElementById("set-who-email"); if (w) w.textContent = em;
+    var i = document.getElementById("set-email"); if (i && document.activeElement !== i) i.value = em;
+    var dg = document.getElementById("set-danger"); if (dg) dg.style.display = "none";
+    var ok = document.getElementById("set-email-ok"); if (ok) ok.style.display = "none";
+    var er = document.getElementById("set-email-err"); if (er) er.textContent = "";
+    highlightTheme(themeMode());
+  }
+  function openSettings() {
+    var d = document.getElementById("set-scrim");
+    if (d) { d.style.display = "grid"; refreshSettings(); return; }
+    d = document.createElement("div");
+    d.id = "set-scrim";
+    d.innerHTML =
+      '<div id="set-modal" role="dialog" aria-modal="true" aria-label="Settings">' +
+        '<div class="set-head"><h2>Settings</h2><button class="set-x" id="set-close" aria-label="Close">✕</button></div>' +
+        '<div class="set-body">' +
+          '<div class="set-sec"><div class="set-lbl">Account</div>' +
+            '<div class="set-who">Signed in as <b id="set-who-email"></b></div>' +
+            '<div class="set-row"><input id="set-email" type="email" autocomplete="email" spellcheck="false"><button class="set-btn primary" id="set-email-save">Save</button></div>' +
+            '<div class="set-hint">Changing your email sends a confirmation link to <b>both</b> your old and new address — the change applies once you confirm.</div>' +
+            '<div class="set-err" id="set-email-err"></div>' +
+            '<div class="set-ok" id="set-email-ok">✓ Confirmation links sent. Check both inboxes to finish.</div>' +
+          '</div>' +
+          '<div class="set-sec"><div class="set-lbl">Appearance</div>' +
+            '<div class="set-seg" id="set-seg"><button data-t="system">System</button><button data-t="light">Light</button><button data-t="dark">Dark</button></div>' +
+          '</div>' +
+          '<div class="set-sec"><div class="set-lbl">Session</div><div class="set-stack">' +
+            '<button class="set-btn ghost" id="set-logout">Log out</button>' +
+            '<button class="set-btn danger" id="set-del">Delete account…</button>' +
+            '<div class="set-danger" id="set-danger"><p>This permanently deletes your account and all your data on every device. This can’t be undone.</p><div class="set-cf"><button class="set-btn ghost" id="set-del-cancel">Cancel</button><button class="set-btn danger solid" id="set-del-go">Delete forever</button></div></div>' +
+          '</div></div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(d);
+    d.addEventListener("click", function (e) { if (e.target === d) closeSettings(); });
+    document.getElementById("set-close").onclick = closeSettings;
+    document.getElementById("set-email-save").onclick = changeEmail;
+    document.getElementById("set-logout").onclick = logout;
+    document.getElementById("set-del").onclick = function () { var x = document.getElementById("set-danger"); if (x) x.style.display = "block"; };
+    document.getElementById("set-del-cancel").onclick = function () { var x = document.getElementById("set-danger"); if (x) x.style.display = "none"; };
+    document.getElementById("set-del-go").onclick = deleteAccount;
+    var seg = document.getElementById("set-seg");
+    Array.prototype.forEach.call(seg.querySelectorAll("button"), function (btn) {
+      btn.onclick = function () { applyTheme(btn.getAttribute("data-t")); };
+    });
+    refreshSettings();
   }
 
   /* ---------------- overlay / DOM ---------------- */
@@ -491,7 +582,52 @@
       + "#sync-badge.sync-collapsed>button,#sync-badge.sync-collapsed>#sync-pending{display:none;}"
       + "#sync-badge>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:56vw;}"
       + "}";
+    css += settingsCSS();
     var s = document.createElement("style"); s.textContent = css; document.head.appendChild(s);
+  }
+
+  function settingsCSS() {
+    return ""
+      + "#sync-settings{font-size:15px;line-height:1;padding:0 2px;}"
+      + "#set-scrim{position:fixed;inset:0;z-index:2147483100;display:grid;place-items:center;padding:18px;"
+      + "background:rgba(3,7,15,.6);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);"
+      + "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}"
+      + "#set-modal{width:100%;max-width:420px;background:#0F1728;color:#EAF2FB;"
+      + "--s2:#16213A;--bd:rgba(127,140,170,.28);--sf:#93a4bf;--ft:#66768f;--ac:#2FD3E1;--cr:#FF5C72;--acink:#04222a;"
+      + "border:1px solid var(--bd);border-radius:20px;box-shadow:0 30px 80px -20px rgba(0,0,0,.6);overflow:hidden;}"
+      + "@media (prefers-color-scheme:light){#set-modal{background:#fff;color:#131A2B;--s2:#F2F5FA;--bd:#DBE2ED;--sf:#4C586F;--ft:#7A879E;--ac:#0C8FA0;--cr:#D5354C;--acink:#ffffff;}}"
+      + ":root[data-theme='light'] #set-modal{background:#fff;color:#131A2B;--s2:#F2F5FA;--bd:#DBE2ED;--sf:#4C586F;--ft:#7A879E;--ac:#0C8FA0;--cr:#D5354C;--acink:#ffffff;}"
+      + ":root[data-theme='dark'] #set-modal{background:#0F1728;color:#EAF2FB;--s2:#16213A;--bd:rgba(127,140,170,.28);--sf:#93a4bf;--ft:#66768f;--ac:#2FD3E1;--cr:#FF5C72;--acink:#04222a;}"
+      + ".set-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--bd);}"
+      + ".set-head h2{font-size:17px;font-weight:700;margin:0;}"
+      + ".set-x{background:none;border:0;color:var(--ft);font-size:18px;cursor:pointer;line-height:1;padding:2px 6px;}"
+      + ".set-body{padding:2px 18px 16px;}"
+      + ".set-sec{padding:14px 0;border-bottom:1px solid var(--bd);}"
+      + ".set-sec:last-child{border-bottom:0;}"
+      + ".set-lbl{font:600 10.5px/1 ui-monospace,Menlo,monospace;letter-spacing:.8px;text-transform:uppercase;color:var(--ac);margin-bottom:9px;}"
+      + ".set-who{font-size:13px;color:var(--sf);}"
+      + ".set-who b{color:inherit;font-family:ui-monospace,Menlo,monospace;font-weight:600;}"
+      + ".set-row{display:flex;gap:8px;margin-top:10px;}"
+      + "#set-email{flex:1;min-width:0;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;color:inherit;font:500 14px ui-monospace,Menlo,monospace;box-sizing:border-box;}"
+      + "#set-email:focus{outline:none;border-color:var(--ac);}"
+      + ".set-btn{border:1px solid var(--bd);background:var(--s2);color:inherit;border-radius:10px;padding:10px 14px;font:600 13px -apple-system,sans-serif;cursor:pointer;}"
+      + ".set-btn:disabled{opacity:.55;cursor:default;}"
+      + ".set-btn.primary{background:var(--ac);border-color:var(--ac);color:var(--acink);}"
+      + ".set-btn.ghost{background:none;}"
+      + ".set-btn.danger{color:var(--cr);border-color:var(--cr);background:none;}"
+      + ".set-btn.danger.solid{background:var(--cr);border-color:var(--cr);color:#fff;}"
+      + ".set-hint{font-size:12px;color:var(--ft);margin-top:8px;line-height:1.5;}"
+      + ".set-hint b{color:inherit;}"
+      + ".set-err{font-size:12.5px;color:#FF7A8C;margin-top:8px;}"
+      + ".set-ok{display:none;font-size:12.5px;color:#2FE79B;margin-top:8px;}"
+      + ".set-seg{display:flex;gap:4px;background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:4px;}"
+      + ".set-seg button{flex:1;border:0;background:none;color:var(--sf);font:600 13px -apple-system,sans-serif;padding:9px 0;border-radius:9px;cursor:pointer;}"
+      + ".set-seg button.on{background:var(--ac);color:var(--acink);}"
+      + ".set-stack{display:flex;flex-direction:column;gap:10px;}"
+      + ".set-danger{display:none;padding:12px;border:1px solid var(--cr);border-radius:12px;}"
+      + ".set-danger p{font-size:12.5px;color:var(--sf);margin:0 0 10px;line-height:1.5;}"
+      + ".set-cf{display:flex;gap:8px;}"
+      + ".set-cf .set-btn{flex:1;}";
   }
 
   function buildOverlay() {
@@ -654,19 +790,9 @@
     var b = document.createElement("div");
     b.id = "sync-badge";
     b.innerHTML = '<span id="sync-dot"></span><span>' + esc(email) + '</span>' +
-      '<button id="sync-out">Log out</button>' +
-      '<button id="sync-delete" title="Permanently delete your account and data">Delete account</button>';
+      '<button id="sync-settings" title="Settings" aria-label="Settings">⚙</button>';
     document.body.appendChild(b);
-    document.getElementById("sync-out").onclick = logout;
-    document.getElementById("sync-delete").onclick = deleteAccount;
-    // On phones, start collapsed (dot + email only); tapping the pill reveals Log out / Delete.
-    if (window.matchMedia && window.matchMedia("(max-width:560px)").matches) {
-      b.classList.add("sync-collapsed");
-      b.addEventListener("click", function (e) {
-        if (e.target.tagName === "BUTTON") return;   // let the action buttons do their thing
-        b.classList.toggle("sync-collapsed");
-      });
-    }
+    document.getElementById("sync-settings").onclick = openSettings;
     updatePendingBadge();
   }
   // Visible "• Pending" chip whenever this device holds edits not yet confirmed in the cloud.

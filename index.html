@@ -18,6 +18,7 @@
   function cur() { var a = root.getAttribute("data-theme"); return a ? a : (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"); }
   function icon() { var b = document.getElementById("themeBtn"); if (b) b.textContent = (cur() === "dark" ? "☀️" : "🌙"); }
   window.__toggleTheme = function () { var n = cur() === "dark" ? "light" : "dark"; root.setAttribute("data-theme", n); try { localStorage.setItem(KEY, n); } catch (e) {} icon(); };
+  window.__setTheme = function (mode) { if (mode === "light" || mode === "dark") { root.setAttribute("data-theme", mode); try { localStorage.setItem(KEY, mode); } catch (e) {} } else { root.removeAttribute("data-theme"); try { localStorage.removeItem(KEY); } catch (e) {} } icon(); };
   try { matchMedia("(prefers-color-scheme: light)").addEventListener("change", function () { if (!root.getAttribute("data-theme")) icon(); }); } catch (e) {}
   document.addEventListener("DOMContentLoaded", icon);
 })();
@@ -33,7 +34,7 @@
 <body>
 <!-- Cross-device sync: login + cloud storage. Must load before the app script. -->
 <script>window.SYNC_CONFIG = { app: "pnl", name: "P&L", keys: ["ledger.trades.v1", "ledger.holdings.v1", "ledger.contrib.v1", "ledger.years.v1"] };</script>
-<script src="supabase-sync.js?v=21"></script>
+<script src="supabase-sync.js?v=22"></script>
 <script src="native.js?v=1"></script>
 <style>
   /* ---------- reset (self-sufficient when opened as a local file) ---------- */
