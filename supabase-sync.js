@@ -579,8 +579,9 @@
       // dot+email corner pill and reveal the actions only on tap.
       + "@media (max-width:560px){"
       + "#sync-badge{max-width:calc(100vw - 28px);}"
-      + "#sync-badge.sync-collapsed{cursor:pointer;}"
-      + "#sync-badge.sync-collapsed>button,#sync-badge.sync-collapsed>#sync-pending{display:none;}"
+      + "#sync-badge.sync-collapsed{cursor:pointer;padding:8px;}"
+      + "#sync-badge.sync-collapsed>button,#sync-badge.sync-collapsed>#sync-pending,#sync-badge.sync-collapsed>#sync-email{display:none;}"
+      + "#sync-badge.sync-collapsed>#sync-dot{width:9px;height:9px;}"
       + "#sync-badge>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:56vw;}"
       + "}";
     css += settingsCSS();
@@ -835,10 +836,19 @@
     if (document.getElementById("sync-badge")) return;
     var b = document.createElement("div");
     b.id = "sync-badge";
-    b.innerHTML = '<span id="sync-dot"></span><span>' + esc(email) + '</span>' +
+    b.innerHTML = '<span id="sync-dot"></span><span id="sync-email">' + esc(email) + '</span>' +
       '<button id="sync-settings" title="Settings" aria-label="Settings">⚙</button>';
     document.body.appendChild(b);
     document.getElementById("sync-settings").onclick = openSettings;
+    // On phones, start collapsed to just the status dot so the email/settings pill stops
+    // floating over the screen; tapping the dot reveals the email + ⚙ settings button.
+    if (window.matchMedia && window.matchMedia("(max-width:560px)").matches) {
+      b.classList.add("sync-collapsed");
+      b.addEventListener("click", function (e) {
+        if (e.target.tagName === "BUTTON") return;   // let the settings button do its thing
+        b.classList.toggle("sync-collapsed");
+      });
+    }
     updatePendingBadge();
   }
   // Visible "• Pending" chip whenever this device holds edits not yet confirmed in the cloud.
