@@ -318,6 +318,10 @@
   .val-wrap.has .cost-input { flex: 0 1 auto; min-width: 0; }
   .val-wrap:not(.has) .cost-input { flex: 1 1 auto; width: 100%; }
   .total-row td { font-weight: 700; border-top: 2px solid var(--border); border-bottom: none; }
+  .sub-row td { color: var(--ink-soft); font-size: 13px; border-top: none; padding-top: 4px; padding-bottom: 4px; }
+  .net-row td { font-weight: 700; border-top: none; padding-top: 4px; }
+  .net-row td.l { color: var(--accent); }
+  .net-row td.num { color: var(--accent); }
   /* Withdrawals card */
   .w-net { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin: 12px 0 14px; }
   .w-net .lbl { font-size: 12px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .5px; }
@@ -588,12 +592,20 @@
       <input class="amt" id="wAmt" type="number" step="any" min="0" placeholder="$ amount" aria-label="Withdrawal amount">
       <button type="button" id="wAdd">＋ Add</button>
     </div>
+    <div class="tf-tabs" id="wTabs">
+      <button type="button" class="tf-chip" data-wtf="1w">1W</button>
+      <button type="button" class="tf-chip" data-wtf="1m">1M</button>
+      <button type="button" class="tf-chip" data-wtf="3m">3M</button>
+      <button type="button" class="tf-chip" data-wtf="1y">1Y</button>
+      <button type="button" class="tf-chip active" data-wtf="all">All</button>
+    </div>
     <div class="table-wrap">
       <table>
         <thead><tr><th class="l">Date</th><th>Withdrawn</th><th></th></tr></thead>
         <tbody id="wBody"></tbody>
       </table>
     </div>
+    <button type="button" class="show-all-btn" id="wShowAll" hidden></button>
   </section>
 
   <footer class="foot">Private to you — trades are saved in this browser only, never uploaded.</footer>
@@ -709,7 +721,7 @@
   // ---------- withdrawals (dated log of money taken out; nets against contributions) ----------
   var WKEY = "ledger.withdraw.v1";
   var withdraw = loadWithdraw();   // [{ id, date:"YYYY-MM-DD", amount }]
-  var wAddWired = false;
+  var wTF = "all", wExpanded = false, W_PAGE = 5, wWired = false;
   function loadWithdraw() { try { var v = JSON.parse(localStorage.getItem(WKEY)); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
   function persistW() { localStorage.setItem(WKEY, JSON.stringify(withdraw)); }
 
@@ -840,10 +852,15 @@
           '" value="' + (num == null ? "" : esc(num)) + '" placeholder="—"></td>' +
       '</tr>';
     }
+    var wTot = withdrawTotalFor(y), net = tot - wTot;
     body += '<tr class="total-row"><td class="l" style="color:var(--accent)">Total ' + y + '</td><td class="num">' + money(tot) + '</td></tr>';
+    if (wTot > 0) {
+      body += '<tr class="sub-row"><td class="l">Withdrawn</td><td class="num neg">−' + money(wTot) + '</td></tr>';
+      body += '<tr class="net-row"><td class="l">Net contributed</td><td class="num">' + money(net) + '</td></tr>';
+    }
     document.getElementById("contribBody").innerHTML = body;
-    document.getElementById("contribTotal").textContent = money(tot) + " added · " + y;
-    renderContribDonut(y, vals, tot);
+    document.getElementById("contribTotal").textContent = (wTot > 0 ? money(net) + " net · " : money(tot) + " added · ") + y;
+    renderContribDonut(y, vals, net, wTot > 0);
     Array.prototype.forEach.call(document.querySelectorAll("[data-contrib]"), function (inp) {
       inp.addEventListener("change", function () {
         var k = inp.getAttribute("data-contrib");
@@ -852,7 +869,7 @@
       });
     });
   }
-  function renderContribDonut(y, vals, tot) {
+  function renderContribDonut(y, vals, centerVal, isNet) {
     var host = document.getElementById("contribDonut");
     if (!host) return;
     var cx = 120, cy = 120, r = 88, w = 19, C = 2 * Math.PI * r, sumW = 0, arcs = "";
@@ -874,8 +891,8 @@
     }
     host.innerHTML = '<svg viewBox="0 0 240 240" role="img" aria-label="Monthly contributions for ' + y + '">' +
       arcs +
-      '<text x="120" y="114" text-anchor="middle" class="donut-total">' + money(tot) + '</text>' +
-      '<text x="120" y="136" text-anchor="middle" class="donut-sub">' + y + '</text>' +
+      '<text x="120" y="114" text-anchor="middle" class="donut-total">' + money(centerVal) + '</text>' +
+      '<text x="120" y="136" text-anchor="middle" class="donut-sub">' + (isNet ? "net · " + y : y) + '</text>' +
       '</svg>';
   }
 
@@ -892,35 +909,57 @@
     }
     return t;
   }
+  function withdrawTotalFor(y) {
+    return withdraw.reduce(function (s, w) {
+      return s + (String(w.date).slice(0, 4) === y ? (Number(w.amount) || 0) : 0);
+    }, 0);
+  }
   function renderWithdrawals() {
     var y = contribYear();
-    var yrs = withdraw.filter(function (w) { return String(w.date).slice(0, 4) === y; })
-                      .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
-    var totW = yrs.reduce(function (s, w) { return s + (Number(w.amount) || 0); }, 0);
+    // Year-scoped figures drive the Net box + contributions donut (independent of the browse timeframe).
+    var yearList = withdraw.filter(function (w) { return String(w.date).slice(0, 4) === y; })
+                           .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+    var totW = yearList.reduce(function (s, w) { return s + (Number(w.amount) || 0); }, 0);
     var cTot = contribTotalFor(y), net = cTot - totW;
     document.getElementById("wSub").textContent = (totW > 0 ? "−" + money(totW) : money(0)) + " · " + y;
     document.getElementById("wNet").textContent = money(net);
     document.getElementById("wNetBreak").textContent = money(cTot) + " in − " + money(totW) + " out";
+
+    // The list is browsable: the timeframe chips narrow it (relative to today), then it pages at 5 rows.
+    var cutoff = tfCutoff(wTF);
+    var list = yearList.filter(function (w) { return !cutoff || new Date(w.date) >= cutoff; });
+    var shown = wExpanded ? list : list.slice(0, W_PAGE);
     var body = "";
-    if (!yrs.length) {
-      body = '<tr><td colspan="3" class="w-empty">No withdrawals logged for ' + y + '.</td></tr>';
+    if (!list.length) {
+      body = '<tr><td colspan="3" class="w-empty">No withdrawals ' + (wTF === "all" ? "logged for " + y : "in this period") + '.</td></tr>';
     } else {
-      yrs.forEach(function (w) {
+      shown.forEach(function (w) {
         body += '<tr><td class="l">' + fmtDate(w.date) + '</td>' +
           '<td class="num neg">−' + money(w.amount) + '</td>' +
           '<td class="num"><button class="del" type="button" data-wdel="' + esc(w.id) + '" title="Remove">✕</button></td></tr>';
       });
     }
     document.getElementById("wBody").innerHTML = body;
+    // Reflect the active timeframe chip.
+    Array.prototype.forEach.call(document.querySelectorAll("#wTabs .tf-chip"), function (b) {
+      b.classList.toggle("active", b.getAttribute("data-wtf") === wTF);
+    });
+    // Show-all / Show-less toggle appears only when the filtered list runs past one page.
+    var sa = document.getElementById("wShowAll");
+    if (list.length > W_PAGE) {
+      sa.hidden = false;
+      sa.textContent = wExpanded ? "Show less" : ("Show all (" + list.length + ")");
+    } else { sa.hidden = true; }
+
     Array.prototype.forEach.call(document.querySelectorAll("[data-wdel]"), function (b) {
       b.addEventListener("click", function () {
         var id = b.getAttribute("data-wdel");
         withdraw = withdraw.filter(function (w) { return String(w.id) !== String(id); });
-        persistW(); renderWithdrawals();
+        persistW(); renderWithdrawals(); renderContrib();   // donut/total reflect the change
       });
     });
-    if (!wAddWired) {
-      wAddWired = true;
+    if (!wWired) {
+      wWired = true;
       var addBtn = document.getElementById("wAdd");
       if (addBtn) addBtn.addEventListener("click", function () {
         var d = document.getElementById("wDate").value;
@@ -929,8 +968,13 @@
         withdraw.push({ id: "w" + Date.now(), date: d, amount: a });
         document.getElementById("wDate").value = "";
         document.getElementById("wAmt").value = "";
-        persistW(); renderWithdrawals();
+        persistW(); renderWithdrawals(); renderContrib();   // donut/total reflect the change
       });
+      Array.prototype.forEach.call(document.querySelectorAll("#wTabs .tf-chip"), function (b) {
+        b.addEventListener("click", function () { wTF = b.getAttribute("data-wtf"); wExpanded = false; renderWithdrawals(); });
+      });
+      var saBtn = document.getElementById("wShowAll");
+      if (saBtn) saBtn.addEventListener("click", function () { wExpanded = !wExpanded; renderWithdrawals(); });
     }
   }
 
