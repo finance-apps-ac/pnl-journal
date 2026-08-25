@@ -318,9 +318,17 @@
   .val-wrap.has .cost-input { flex: 0 1 auto; min-width: 0; }
   .val-wrap:not(.has) .cost-input { flex: 1 1 auto; width: 100%; }
   .total-row td { font-weight: 700; border-top: 2px solid var(--border); border-bottom: none; }
-  .net-row .l { color: var(--accent); font-weight: 700; }
-  .net-row .num { color: var(--accent); font-weight: 700; }
-  input.wd-input { color: var(--loss); }
+  /* Withdrawals card */
+  .w-net { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin: 12px 0 14px; }
+  .w-net .lbl { font-size: 12px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .5px; }
+  .w-net .lbl small { display: block; text-transform: none; letter-spacing: 0; color: var(--ink-faint); font-size: 11px; margin-top: 2px; font-family: var(--font-mono); }
+  .w-net .amt { font-family: var(--font-mono); font-weight: 700; font-size: 22px; color: var(--accent); white-space: nowrap; }
+  .w-add { display: flex; gap: 8px; }
+  .w-add input { background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; color: var(--ink); font-family: var(--font-mono); font-size: 13px; padding: 9px 10px; min-width: 0; }
+  .w-add input[type=date] { flex: 1.4; color-scheme: dark; }
+  .w-add input.amt { flex: 1; text-align: right; }
+  .w-add button { background: var(--accent); color: #03212a; border: 0; border-radius: 9px; font-weight: 700; font-size: 13px; padding: 0 14px; cursor: pointer; white-space: nowrap; }
+  .w-empty { color: var(--ink-faint); font-size: 12.5px; text-align: center; padding: 14px 0; }
   .t-date { font-variant-numeric: tabular-nums; }
   .t-date .d { font-weight: 700; color: var(--ink); text-transform: uppercase; }
   .t-date .y { color: var(--ink-faint); font-size: 12px; margin-left: 5px; }
@@ -560,8 +568,30 @@
     <div class="chart contrib-donut" id="contribDonut"></div>
     <div class="table-wrap">
       <table id="contribTable">
-        <thead><tr><th class="l">Month</th><th>Funds&nbsp;added</th><th>Withdrawn</th></tr></thead>
+        <thead><tr><th class="l">Month</th><th>Funds&nbsp;added</th></tr></thead>
         <tbody id="contribBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Withdrawals</h2>
+      <span class="card-sub" id="wSub"></span>
+    </div>
+    <div class="w-net">
+      <div class="lbl">Net contributions<small id="wNetBreak"></small></div>
+      <div class="amt" id="wNet"></div>
+    </div>
+    <div class="w-add">
+      <input type="date" id="wDate" aria-label="Withdrawal date">
+      <input class="amt" id="wAmt" type="number" step="any" min="0" placeholder="$ amount" aria-label="Withdrawal amount">
+      <button type="button" id="wAdd">＋ Add</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th class="l">Date</th><th>Withdrawn</th><th></th></tr></thead>
+        <tbody id="wBody"></tbody>
       </table>
     </div>
   </section>
@@ -676,10 +706,11 @@
   // New install starts with no contributions — users enter their own per month.
   function seedContrib() { return {}; }
 
-  // ---------- withdrawals (money taken out; nets against contributions) ----------
+  // ---------- withdrawals (dated log of money taken out; nets against contributions) ----------
   var WKEY = "ledger.withdraw.v1";
-  var withdraw = loadWithdraw();
-  function loadWithdraw() { try { return JSON.parse(localStorage.getItem(WKEY)) || {}; } catch (e) { return {}; } }
+  var withdraw = loadWithdraw();   // [{ id, date:"YYYY-MM-DD", amount }]
+  var wAddWired = false;
+  function loadWithdraw() { try { var v = JSON.parse(localStorage.getItem(WKEY)); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
   function persistW() { localStorage.setItem(WKEY, JSON.stringify(withdraw)); }
 
   // ---------- tracked years (lets you add years with no data yet) ----------
@@ -758,6 +789,7 @@
     renderTrades();
     renderHoldings();
     renderContrib();
+    renderWithdrawals();
     if (typeof populateSellHoldings === "function") populateSellHoldings();
   }
 
@@ -781,25 +813,20 @@
   function contribColor(i) { var c = contribRGB(i); return "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")"; }
   function contribRGBA(i, a) { var c = contribRGB(i); return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + a + ")"; }
   function renderContrib() {
-    var y = contribYear(), totAdd = 0, totWith = 0, body = "", vals = [], maxV = 0;
+    var y = contribYear(), tot = 0, body = "", vals = [], maxV = 0;
     for (var m = 1; m <= 12; m++) {
       var mk = y + "-" + (m < 10 ? "0" : "") + m;
       var mr = contrib[mk];
       var mn = (mr === "" || mr == null) ? null : Number(mr);
-      if (mn != null) totAdd += mn;
+      if (mn != null) tot += mn;
       var mv = (mn != null && mn > 0) ? mn : 0;
       vals.push(mn != null ? mn : 0);
       if (mv > maxV) maxV = mv;
-      var wr = withdraw[mk];
-      var wn = (wr === "" || wr == null) ? null : Number(wr);
-      if (wn != null) totWith += wn;
     }
     for (var mo = 1; mo <= 12; mo++) {
       var key = y + "-" + (mo < 10 ? "0" : "") + mo;
       var raw = contrib[key];
       var num = (raw === "" || raw == null) ? null : Number(raw);
-      var wraw = withdraw[key];
-      var wnum = (wraw === "" || wraw == null) ? null : Number(wraw);
       var v = (num != null && num > 0) ? num : 0;
       var col = contribColor(mo - 1);
       var pct = maxV > 0 ? (v > 0 ? Math.max(10, Math.round(Math.sqrt(v / maxV) * 100)) : 0) : 0;
@@ -811,28 +838,17 @@
           '<span class="cbar">' + fill + '</span></div></td>' +
         '<td class="num"><input class="cost-input" type="number" step="any" data-contrib="' + key +
           '" value="' + (num == null ? "" : esc(num)) + '" placeholder="—"></td>' +
-        '<td class="num"><input class="cost-input wd-input" type="number" step="any" min="0" data-withdraw="' + key +
-          '" value="' + (wnum == null ? "" : esc(wnum)) + '" placeholder="—"></td>' +
       '</tr>';
     }
-    var net = totAdd - totWith;
-    body += '<tr class="total-row"><td class="l">Total ' + y + '</td><td class="num">' + money(totAdd) + '</td><td class="num neg">' + (totWith > 0 ? '−' + money(totWith) : '—') + '</td></tr>';
-    body += '<tr class="net-row"><td class="l">Net contributed</td><td class="num" colspan="2">' + money(net) + '</td></tr>';
+    body += '<tr class="total-row"><td class="l" style="color:var(--accent)">Total ' + y + '</td><td class="num">' + money(tot) + '</td></tr>';
     document.getElementById("contribBody").innerHTML = body;
-    document.getElementById("contribTotal").textContent = money(net) + " net · " + y;
-    renderContribDonut(y, vals, net);
+    document.getElementById("contribTotal").textContent = money(tot) + " added · " + y;
+    renderContribDonut(y, vals, tot);
     Array.prototype.forEach.call(document.querySelectorAll("[data-contrib]"), function (inp) {
       inp.addEventListener("change", function () {
         var k = inp.getAttribute("data-contrib");
         if (inp.value === "") delete contrib[k]; else contrib[k] = parseFloat(inp.value);
-        persistC(); renderContrib();
-      });
-    });
-    Array.prototype.forEach.call(document.querySelectorAll("[data-withdraw]"), function (inp) {
-      inp.addEventListener("change", function () {
-        var k = inp.getAttribute("data-withdraw");
-        if (inp.value === "") delete withdraw[k]; else withdraw[k] = parseFloat(inp.value);
-        persistW(); renderContrib();
+        persistC(); renderContrib(); renderWithdrawals();
       });
     });
   }
@@ -859,8 +875,63 @@
     host.innerHTML = '<svg viewBox="0 0 240 240" role="img" aria-label="Monthly contributions for ' + y + '">' +
       arcs +
       '<text x="120" y="114" text-anchor="middle" class="donut-total">' + money(tot) + '</text>' +
-      '<text x="120" y="136" text-anchor="middle" class="donut-sub">' + y + ' net</text>' +
+      '<text x="120" y="136" text-anchor="middle" class="donut-sub">' + y + '</text>' +
       '</svg>';
+  }
+
+  // ---------- withdrawals card (dated log + net contributions for the selected year) ----------
+  function fmtDate(s) {
+    var p = String(s).split("-");
+    return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+  function contribTotalFor(y) {
+    var t = 0;
+    for (var m = 1; m <= 12; m++) {
+      var mk = y + "-" + (m < 10 ? "0" : "") + m, r = contrib[mk];
+      if (!(r === "" || r == null)) t += Number(r);
+    }
+    return t;
+  }
+  function renderWithdrawals() {
+    var y = contribYear();
+    var yrs = withdraw.filter(function (w) { return String(w.date).slice(0, 4) === y; })
+                      .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+    var totW = yrs.reduce(function (s, w) { return s + (Number(w.amount) || 0); }, 0);
+    var cTot = contribTotalFor(y), net = cTot - totW;
+    document.getElementById("wSub").textContent = (totW > 0 ? "−" + money(totW) : money(0)) + " · " + y;
+    document.getElementById("wNet").textContent = money(net);
+    document.getElementById("wNetBreak").textContent = money(cTot) + " in − " + money(totW) + " out";
+    var body = "";
+    if (!yrs.length) {
+      body = '<tr><td colspan="3" class="w-empty">No withdrawals logged for ' + y + '.</td></tr>';
+    } else {
+      yrs.forEach(function (w) {
+        body += '<tr><td class="l">' + fmtDate(w.date) + '</td>' +
+          '<td class="num neg">−' + money(w.amount) + '</td>' +
+          '<td class="num"><button class="del" type="button" data-wdel="' + esc(w.id) + '" title="Remove">✕</button></td></tr>';
+      });
+    }
+    document.getElementById("wBody").innerHTML = body;
+    Array.prototype.forEach.call(document.querySelectorAll("[data-wdel]"), function (b) {
+      b.addEventListener("click", function () {
+        var id = b.getAttribute("data-wdel");
+        withdraw = withdraw.filter(function (w) { return String(w.id) !== String(id); });
+        persistW(); renderWithdrawals();
+      });
+    });
+    if (!wAddWired) {
+      wAddWired = true;
+      var addBtn = document.getElementById("wAdd");
+      if (addBtn) addBtn.addEventListener("click", function () {
+        var d = document.getElementById("wDate").value;
+        var a = parseFloat(document.getElementById("wAmt").value);
+        if (!d || !(a > 0)) return;
+        withdraw.push({ id: "w" + Date.now(), date: d, amount: a });
+        document.getElementById("wDate").value = "";
+        document.getElementById("wAmt").value = "";
+        persistW(); renderWithdrawals();
+      });
+    }
   }
 
   // Open trades (entry logged, no exit yet) behave as current positions.
