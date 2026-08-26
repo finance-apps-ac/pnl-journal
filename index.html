@@ -300,6 +300,12 @@
                 text-align: right; color: var(--ink); }
   .cost-input:focus { border-color: var(--accent); outline: none; }
   .cost-input::placeholder { color: var(--ink-faint); }
+  /* Incomplete trade (sold with no cost basis) — highlighted prompt to add the buy price. */
+  .fix-cost { width: 84px; background: color-mix(in srgb, var(--loss) 12%, var(--surface-2));
+              border: 1px solid color-mix(in srgb, var(--loss) 55%, var(--border)); border-radius: 6px;
+              padding: 5px 8px; font-size: 12.5px; font-family: var(--font-mono); text-align: right; color: var(--ink); }
+  .fix-cost:focus { border-color: var(--accent); outline: none; }
+  .fix-cost::placeholder { color: var(--loss); }
   /* $ prefix for Value inputs: input is right-aligned, so the symbol sits at the left edge and reads as currency */
   /* The PILL is the wrapper (fixed width, bordered). Inside it, "$" + the number sit together,
      right-aligned as one unit — so the $→number gap is identical on every row and the whole thing
@@ -465,6 +471,7 @@
         <div class="field"><label for="s-close">Date sold</label><input type="date" id="s-close" required></div>
         <div class="field"><label for="s-qty">Quantity <span style="text-transform:none;color:var(--ink-faint)">(blank = all)</span></label><input type="number" id="s-qty" step="any" min="0" placeholder="all"></div>
         <div class="field"><label for="s-exit">Exit price</label><input type="number" id="s-exit" step="any" min="0" placeholder="41.10" required></div>
+        <div class="field"><label for="s-entry">Buy price <span style="text-transform:none;color:var(--ink-faint)">($/sh)</span></label><input type="number" id="s-entry" step="any" min="0" placeholder="cost basis" required></div>
         <div class="field wide"><label for="s-strategy">Strategy / setup</label><input type="text" id="s-strategy" placeholder="Momentum breakout"></div>
         <div class="field wide"><label for="s-notes">Notes</label><input type="text" id="s-notes" placeholder="Hit target, trimmed"></div>
         <div class="form-actions">
@@ -673,8 +680,12 @@
         var oldSh = Number(h.shares) || 0;
         var oldCost = (h.cost === "" || h.cost == null) ? null : Number(h.cost);
         var newSh = oldSh + deltaShares;
-        if (cps != null && (oldCost != null || oldSh === 0)) {
-          h.cost = ((oldCost != null ? oldCost : 0) * oldSh + cps * deltaShares) / newSh;   // blended avg cost
+        if (cps != null && oldCost != null) {
+          h.cost = (oldCost * oldSh + cps * deltaShares) / newSh;   // blended avg cost
+        } else if (cps != null && oldCost == null) {
+          // Prior cost was unknown — adopt this buy's price rather than silently dropping it
+          // (dropping it leaves the position cost-less, which mis-books a later sell as pure profit).
+          h.cost = cps;
         } else if (cps == null && oldCost != null) {
           h.cost = "";   // mixing cost-less shares into a priced position → position is now mixed
         }
@@ -748,9 +759,16 @@
     var open = t.exit === "" || t.exit == null || t.closeDate === "" || t.closeDate == null;
     var pnl = null, pnlPct = null, days = null;
     if (!open) {
-      var gross = (t.direction === "short" ? (t.entry - t.exit) : (t.exit - t.entry)) * t.qty;
+      var entryNum = Number(t.entry);
+      if (t.entry === "" || t.entry == null || isNaN(entryNum)) {
+        // A closed sell with no cost basis can't yield a real gain. Do NOT treat a blank
+        // entry as $0 — that books the entire sale value as profit. Flag it "incomplete"
+        // so it's excluded from totals and the user can add the buy price.
+        return { open: false, incomplete: true, pnl: null, pnlPct: null, days: null };
+      }
+      var gross = (t.direction === "short" ? (entryNum - t.exit) : (t.exit - entryNum)) * t.qty;
       pnl = gross - (Number(t.fees) || 0);
-      var basis = t.entry * t.qty;
+      var basis = entryNum * t.qty;
       pnlPct = basis ? (pnl / basis) * 100 : 0;
       days = Math.max(0, Math.round((new Date(t.closeDate) - new Date(t.openDate)) / 86400000));
     }
@@ -758,7 +776,7 @@
   }
   function closed() {
     return trades.map(function (t) { return { t: t, c: compute(t) }; })
-                 .filter(function (r) { return !r.c.open; })
+                 .filter(function (r) { return !r.c.open && !r.c.incomplete; })
                  .sort(function (a, b) { return new Date(a.t.closeDate) - new Date(b.t.closeDate); });
   }
 
@@ -1085,9 +1103,10 @@
     var n = rows.length;
     var winRate = n ? (wins / n * 100) : 0;
     var pf = grossLoss !== 0 ? (grossWin / Math.abs(grossLoss)) : (grossWin > 0 ? Infinity : 0);
-    var openN = trades.length - n;
+    var incompleteN = trades.filter(function (t) { return compute(t).incomplete; }).length;
+    var openN = trades.length - n - incompleteN;
     var tiles = [
-      { label: "Net realized P&L", value: signed(net), cls: cls(net), sub: n + " closed" + (openN ? " · " + openN + " open" : "") },
+      { label: "Net realized P&L", value: signed(net), cls: cls(net), sub: n + " closed" + (openN ? " · " + openN + " open" : "") + (incompleteN ? " · " + incompleteN + " needs cost" : "") },
       { label: "Win rate", value: n ? winRate.toFixed(0) + "%" : "—", sub: wins + "W / " + (n - wins) + "L" },
       { label: "Profit factor", value: pf === Infinity ? "∞" : (n ? pf.toFixed(2) : "—"), sub: "wins ÷ losses" },
       { label: "Best trade", value: best === null ? "—" : signed(best), cls: "pos" },
@@ -1320,7 +1339,9 @@
           '" value="' + esc(tickersStr(t) || t.symbol || "") + '" placeholder="＋ tickers" autocapitalize="characters" spellcheck="false"></td>' +
         '<td class="num">' + (c.open
               ? '<span class="pnl-pill flat">—</span>'
-              : '<span class="pnl-pill ' + cls(c.pnl) + '">' + signed(c.pnl) + '</span>') + '</td>' +
+              : c.incomplete
+                ? '<input class="fix-cost" type="number" step="any" min="0" inputmode="decimal" data-fixcost="' + t.id + '" placeholder="＋ buy $" title="Add your buy price per share to compute P&L">'
+                : '<span class="pnl-pill ' + cls(c.pnl) + '">' + signed(c.pnl) + '</span>') + '</td>' +
         '<td class="l"><div class="note-cell">' +
           '<input class="note-input" type="text" data-tnote="' + t.id + '" value="' + esc(tnote) + '" placeholder="＋ note" spellcheck="false">' +
           '<button type="button" class="note-exp" data-texp="' + t.id + '" title="Open note to read / edit">⤢</button>' +
@@ -1382,6 +1403,13 @@
       inp.addEventListener("change", function () {
         var tr = trades.filter(function (z) { return z.id === inp.getAttribute("data-tvalue"); })[0];
         if (tr) { tr.saleValue = inp.value === "" ? "" : parseFloat(inp.value); persist(); render(); }
+      });
+    });
+    // Incomplete trade (sold with no cost basis): typing the buy price sets entry → real P&L.
+    Array.prototype.forEach.call(document.querySelectorAll("[data-fixcost]"), function (inp) {
+      inp.addEventListener("change", function () {
+        var tr = trades.filter(function (z) { return z.id === inp.getAttribute("data-fixcost"); })[0];
+        if (tr && inp.value !== "" && Number(inp.value) >= 0) { tr.entry = parseFloat(inp.value); persist(); render(); }
       });
     });
   }
@@ -1479,6 +1507,17 @@
     var h = holdings.filter(function (z) { return z.id === ddInput.value; })[0];
     var qEl = document.getElementById("s-qty");
     qEl.placeholder = h ? (Math.round((Number(h.shares) || 0) * 1e4) / 1e4) + " (all)" : "all";
+    // Auto-fill the buy price from the position's cost. If we don't have one, leave it blank
+    // (the field is required) so the user supplies it — never sell with an unknown cost basis.
+    var eEl = document.getElementById("s-entry");
+    if (eEl) {
+      var known = h && h.cost !== "" && h.cost != null && !isNaN(Number(h.cost));
+      eEl.value = known ? (Math.round(Number(h.cost) * 1e4) / 1e4) : "";
+      var hint = document.getElementById("sellHint");
+      if (hint && h) hint.textContent = known
+        ? "Pick a position you already hold — the purchase details fill in automatically."
+        : "We don't have a cost basis for this position — enter your buy price so the P&L is right.";
+    }
   }
   sellForm.addEventListener("reset", function () { setTimeout(populateSellHoldings, 0); });
 
@@ -1534,7 +1573,11 @@
     var qty = qtyRaw === "" ? avail : parseFloat(qtyRaw);
     if (!(qty > 0)) return;
     if (qty > avail) qty = avail;                                   // never sell more than held
-    var entry = (h.cost === "" || h.cost == null) ? "" : Number(h.cost);   // entry came from the buy
+    // Buy price: taken from the (auto-filled, editable, required) field so the P&L always
+    // has a real cost basis — a blank cost would book the whole sale value as profit.
+    var entryRaw = g("s-entry");
+    var entry = entryRaw === "" ? "" : parseFloat(entryRaw);
+    if (entry === "" || !(entry >= 0)) return;
     var sym = String(h.symbol || "").trim().toUpperCase();
     trades.push({ id: uid(), openDate: h.openDate || "", closeDate: closeDate,
       symbol: sym, direction: h.direction || "long", qty: qty, entry: entry, exit: exit, fees: 0,
@@ -1704,7 +1747,7 @@
     trades.forEach(function (t) {
       var c = compute(t);
       var row = FIELDS.map(function (f) { return csvCell(t[f]); });
-      row.push(c.open ? "" : c.pnl.toFixed(2),
+      row.push((c.open || c.incomplete || c.pnl == null) ? "" : c.pnl.toFixed(2),
                c.pnlPct == null ? "" : c.pnlPct.toFixed(2),
                c.days == null ? "" : c.days);
       lines.push(row.join(","));
