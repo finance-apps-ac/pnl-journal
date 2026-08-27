@@ -89,4 +89,71 @@
       });
     } catch (e) {}
   }
+
+  // ---------- P&L Pro subscription gate (on-device StoreKit; native only) ----------
+  function initPaywall() {
+    var pw = document.getElementById("pw-overlay");
+    if (!pw) return;
+    var SK = P.StoreKit;
+    if (!SK) return;                    // plugin absent → don't trap the user (fail open)
+
+    var html = document.documentElement;
+    function show() { pw.hidden = false; html.style.overflow = "hidden"; }
+    function hide() { pw.hidden = true; html.style.overflow = ""; }
+    function gate(active) { active ? hide() : show(); }
+    function openUrl(u) {
+      try { if (P.Browser && P.Browser.open) { P.Browser.open({ url: u }); return; } } catch (e) {}
+      try { window.open(u, "_system"); } catch (e) { try { window.open(u, "_blank"); } catch (e2) {} }
+    }
+
+    // Show the paywall up front; reveal the app only once an active entitlement is confirmed.
+    show();
+
+    var subBtn = document.getElementById("pw-subscribe");
+    if (subBtn) subBtn.addEventListener("click", function () {
+      if (window.nativeTap) window.nativeTap("MEDIUM");
+      var label = subBtn.textContent; subBtn.disabled = true; subBtn.textContent = "Starting…";
+      SK.purchase().then(function (r) {
+        subBtn.disabled = false; subBtn.textContent = label;
+        if (r && r.active) gate(true);
+      }).catch(function () { subBtn.disabled = false; subBtn.textContent = label; });
+    });
+
+    var restoreBtn = document.getElementById("pw-restore");
+    if (restoreBtn) restoreBtn.addEventListener("click", function () {
+      SK.restore().then(function (r) {
+        if (r && r.active) gate(true);
+        else alert("No active subscription was found for this Apple Account.");
+      }).catch(function () { alert("Couldn't restore right now. Please try again."); });
+    });
+
+    var termsBtn = document.getElementById("pw-terms");
+    if (termsBtn) termsBtn.addEventListener("click", function () { openUrl("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"); });
+    var privBtn = document.getElementById("pw-privacy");
+    if (privBtn) privBtn.addEventListener("click", function () { openUrl("https://finance-apps-ac.github.io/pnl-journal/privacy.html"); });
+
+    // Keep price copy in sync with the App Store; drop "free trial" wording if the user isn't eligible.
+    try {
+      SK.getProduct().then(function (p) {
+        if (!p) return;
+        var priceEl = document.getElementById("pw-price"),
+            trialEl = document.getElementById("pw-trial"),
+            cta = document.getElementById("pw-subscribe");
+        if (priceEl && p.displayPrice) priceEl.textContent = "then " + p.displayPrice + "/month";
+        if (p.introEligible === false) {
+          if (trialEl) trialEl.textContent = (p.displayPrice || "$2.99") + "/month";
+          if (priceEl) priceEl.textContent = "billed monthly";
+          if (cta) cta.textContent = "Subscribe";
+        }
+      }).catch(function () {});
+    } catch (e) {}
+
+    // Live updates (renewals / Ask-to-Buy approvals / expiry) + re-check on foreground.
+    try { SK.addListener("entitlementChanged", function (d) { gate(!!(d && d.active)); }); } catch (e) {}
+    function check() { SK.checkEntitlement().then(function (r) { gate(!!(r && r.active)); }).catch(function () {}); }
+    check();
+    if (P.App) { try { P.App.addListener("appStateChange", function (s) { if (s && s.isActive) check(); }); } catch (e) {} }
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initPaywall);
+  else initPaywall();
 })();
