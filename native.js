@@ -33,7 +33,7 @@
 
   // ---------- Biometric app-lock ----------
   var LOCK_KEY = "native.biometric.lock";
-  window.biometricLockEnabled = function () { try { return localStorage.getItem(LOCK_KEY) !== "0"; } catch (e) { return false; } };  // default ON
+  window.biometricLockEnabled = function () { try { return localStorage.getItem(LOCK_KEY) === "1"; } catch (e) { return false; } };  // default OFF — opt-in from Settings; never locks a new user or an App Review device
   window.biometricLockSupported = function () { return isNative && !!P.NativeBiometric; };
   window.setBiometricLock = function (on) {
     try { localStorage.setItem(LOCK_KEY, on ? "1" : "0"); } catch (e) {}
@@ -65,9 +65,10 @@
     if (!B) { hideVeil(); return; }                       // plugin absent → never trap the user
     B.isAvailable().then(function (r) {
       if (!r || !r.isAvailable) { hideVeil(); return; }   // no Face ID enrolled → let them in
-      B.verifyIdentity({ reason: "Unlock " + APP_NAME, title: APP_NAME, subtitle: "", description: "" })
+      B.verifyIdentity({ reason: "Unlock " + APP_NAME, title: APP_NAME, subtitle: "", description: "",
+                         useFallback: true, fallbackTitle: "Use Passcode" })   // device passcode fallback so no one is ever trapped
         .then(hideVeil)
-        .catch(function () { /* failed / cancelled — stay locked, user taps Unlock to retry */ });
+        .catch(function () { /* failed / cancelled — stay locked, user taps Unlock to retry (Face ID or passcode) */ });
     }).catch(function () { hideVeil(); });
   }
 
