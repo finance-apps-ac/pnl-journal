@@ -822,6 +822,9 @@
     } catch (e) {}
     location.reload();
   }
+  // Exposed so the native paywall can offer a "preview with sample data" path into the guest demo.
+  window.__enterDemo = function () { enterDemo(true); };
+  window.__exitDemo = exitDemo;
   function showDemoBadge() {
     if (document.getElementById("sync-badge")) return;
     var b = document.createElement("div");

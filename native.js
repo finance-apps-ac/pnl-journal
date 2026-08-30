@@ -98,16 +98,28 @@
     if (!SK) return;                    // plugin absent → don't trap the user (fail open)
 
     var html = document.documentElement;
+    var appName = (window.SYNC_CONFIG && window.SYNC_CONFIG.app) || "pnl";
+    function isDemoNow() { try { return localStorage.getItem("__demo_" + appName) === "1"; } catch (e) { return false; } }
     function show() { pw.hidden = false; html.style.overflow = "hidden"; }
     function hide() { pw.hidden = true; html.style.overflow = ""; }
-    function gate(active) { active ? hide() : show(); }
+    // Never trap someone who is just previewing the app with sample data (guest demo).
+    function gate(active) { (active || isDemoNow()) ? hide() : show(); }
     function openUrl(u) {
       try { if (P.Browser && P.Browser.open) { P.Browser.open({ url: u }); return; } } catch (e) {}
       try { window.open(u, "_system"); } catch (e) { try { window.open(u, "_blank"); } catch (e2) {} }
     }
 
-    // Show the paywall up front; reveal the app only once an active entitlement is confirmed.
-    show();
+    // Show the paywall up front (unless the user is already previewing the demo); reveal the app
+    // once an active entitlement — or a demo preview — is confirmed.
+    gate(false);
+
+    // "Just looking? Preview with sample data" — drop into the guest demo, no subscription needed.
+    var previewBtn = document.getElementById("pw-preview");
+    if (previewBtn) previewBtn.addEventListener("click", function () {
+      if (window.nativeTap) window.nativeTap("LIGHT");
+      try { if (window.__enterDemo) window.__enterDemo(); } catch (e) {}
+      hide();
+    });
 
     var subBtn = document.getElementById("pw-subscribe");
     if (subBtn) subBtn.addEventListener("click", function () {
