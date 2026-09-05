@@ -248,7 +248,13 @@
       if (hasUnpushed() || KEYS.some(function (k) { return origGet(k) !== null; })) return push();
       return Promise.resolve();
     }
-    var cloudMoved = (row.updated_at !== getSeen());        // cloud changed since we last synced?
+    // Only a STRICTLY NEWER cloud counts as "moved". Comparing with !== was a data-loss bug: Supabase
+    // realtime can deliver a DELAYED echo of an earlier save (older updated_at) after a newer one, and
+    // a read replica can lag — an older snapshot would then satisfy `differs && cloudMoved` and
+    // OVERWRITE fresher local edits. Requiring updated_at > seen makes a stale/older echo fall through
+    // to the self-healing "push local" branch instead. (ISO-8601 UTC timestamps compare lexically.)
+    var seen = getSeen();
+    var cloudMoved = !seen || (row.updated_at > seen);
     var differs = (canon(row.data) !== canon(local));
 
     if (hasUnpushed()) {
