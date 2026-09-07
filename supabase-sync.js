@@ -329,6 +329,18 @@
     loggedInOnce = true;
     currentUser = user;
     showLoading();
+    // Subscribers-only on the web — the website can't be used to bypass the iPhone subscription.
+    // Native iOS is already gated by StoreKit, so the entitlement check runs on the web only.
+    var isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    if (isNativeApp) { proceedLogin(user); return; }
+    sb.rpc("is_pro", { p_app: cfg.app }).then(function (res) {
+      if (res && !res.error && res.data === true) proceedLogin(user);   // active subscriber → full app
+      else showLocked(user);        // not subscribed (fail-closed on error) → locked, no app access
+    }).catch(function () { showLocked(user); });
+  }
+
+  // The original post-login logic — unchanged; only reached once entitlement is confirmed (or on native).
+  function proceedLogin(user) {
     var finish = function (row, note) {
       subscribeRealtime();
       ready = true;
@@ -798,6 +810,26 @@
     else { btn.disabled = false; var l = btn.getAttribute("data-label"); if (l) btn.textContent = l; }
   }
   function hideOverlay() { overlay.style.display = "none"; }
+
+  /* ---------------- subscribers-only gate (web) ---------------- */
+  // Signed in but not an active subscriber → show this instead of the app. No data is pulled or
+  // rendered, so a non-subscriber never gets access to the full web app.
+  function showLocked(user) {
+    overlay.style.display = "flex";
+    document.getElementById("sync-body").innerHTML =
+      '<div class="sync-big-emoji">🔒</div>' +
+      '<h1>' + esc(cfg.name) + ' Pro</h1>' +
+      '<p class="sub">The web app is included with your subscription. Start it in the <b>' + esc(cfg.name) +
+        '</b> app for iPhone — 1 week free, then $1.99/month — then sign in here with the same account.</p>' +
+      '<div id="sync-err"></div>' +
+      (window.DEMO_SEED ? '<div id="sync-demo-wrap"><button type="button" id="sync-demo">Try the demo — no sign-up</button></div>' : '') +
+      '<div id="sync-toggle"><a id="sync-signout">Sign out (' + esc(user.email) + ')</a></div>';
+    var demoBtn = document.getElementById("sync-demo");
+    if (demoBtn) demoBtn.onclick = function () { enterDemo(true); };
+    document.getElementById("sync-signout").onclick = function () {
+      sb.auth.signOut().then(function () { location.reload(); }).catch(function () { location.reload(); });
+    };
+  }
 
   /* ---------------- guest demo mode (no account, sample data) ---------------- */
   function isDemo() { try { return localStorage.getItem("__demo_" + cfg.app) === "1"; } catch (e) { return false; } }
