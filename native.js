@@ -79,6 +79,22 @@
   try { P.StatusBar && P.StatusBar.setBackgroundColor({ color: "#080D1A" }); } catch (e) {}
   try { P.SplashScreen && P.SplashScreen.hide(); } catch (e) {}
 
+  // ---------- Native CSV export: write a real .csv file, then hand it to the iOS Share sheet ----------
+  // index.html calls this hook when it exists (native only). WKWebView can't download a blob, so we
+  // write the file to the cache and share it (Save to Files / Mail / …).
+  window.__exportCSVFile = function (name, csv) {
+    var FS = P.Filesystem, Sh = P.Share;
+    function shareText() { if (Sh && Sh.share) { try { Sh.share({ title: name, text: csv, dialogTitle: "Export " + name }); } catch (e) {} } }
+    if (!FS || !FS.writeFile || !Sh || !Sh.share) { shareText(); return; }   // no Filesystem plugin → share text
+    try {
+      FS.writeFile({ path: name, data: csv, directory: "CACHE", encoding: "utf8" }).then(function (res) {
+        var uri = res && res.uri;
+        if (!uri) { shareText(); return; }
+        Sh.share({ title: name, files: [uri], dialogTitle: "Export " + name }).catch(function () {});
+      }).catch(function () { shareText(); });
+    } catch (e) { shareText(); }
+  };
+
   // Lock on cold start, and whenever the app returns from the background. Going to the
   // background drops the veil immediately so account data isn't shown in the app switcher.
   if (window.biometricLockEnabled()) { showVeil(); tryUnlock(); }

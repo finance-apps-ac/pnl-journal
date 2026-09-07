@@ -329,14 +329,15 @@
     loggedInOnce = true;
     currentUser = user;
     showLoading();
-    // Subscribers-only on the web — the website can't be used to bypass the iPhone subscription.
-    // Native iOS is already gated by StoreKit, so the entitlement check runs on the web only.
-    var isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-    if (isNativeApp) { proceedLogin(user); return; }
-    sb.rpc("is_pro", { p_app: cfg.app }).then(function (res) {
-      if (res && !res.error && res.data === true) proceedLogin(user);   // active subscriber → full app
-      else showLocked(user);        // not subscribed (fail-closed on error) → locked, no app access
-    }).catch(function () { showLocked(user); });
+    // ⚠️ Subscribers-only web gate TEMPORARILY DISABLED (2026-09-07). P&L doesn't yet link iOS
+    // subscriptions to accounts, so is_pro('pnl') is false for real subscribers — gating now would
+    // lock them out. RE-ENABLE after v1.0.1 ships the subscription linking, by restoring:
+    //   var isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    //   if (isNativeApp) { proceedLogin(user); return; }
+    //   sb.rpc("is_pro", { p_app: cfg.app }).then(function (res) {
+    //     if (res && !res.error && res.data === true) proceedLogin(user); else showLocked(user);
+    //   }).catch(function () { showLocked(user); });
+    proceedLogin(user);
   }
 
   // The original post-login logic — unchanged; only reached once entitlement is confirmed (or on native).
