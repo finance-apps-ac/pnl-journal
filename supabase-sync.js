@@ -328,6 +328,9 @@
     if (loggedInOnce) return;       // auth events can fire this twice — run once
     loggedInOnce = true;
     currentUser = user;
+    // Native (iOS): tell native.js who signed in so it can link the Apple subscription to this account
+    // (so the subscriber gets is_pro('pnl')=true for web access). No-op on web (__onSignedIn undefined).
+    try { if (window.__onSignedIn) window.__onSignedIn(user.id, currentToken); } catch (e) {}
     showLoading();
     // ⚠️ Subscribers-only web gate TEMPORARILY DISABLED (2026-09-07). P&L doesn't yet link iOS
     // subscriptions to accounts, so is_pro('pnl') is false for real subscribers — gating now would

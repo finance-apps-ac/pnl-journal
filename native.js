@@ -142,7 +142,9 @@
     if (subBtn) subBtn.addEventListener("click", function () {
       if (window.nativeTap) window.nativeTap("MEDIUM");
       var label = subBtn.textContent; subBtn.disabled = true; subBtn.textContent = "Starting…";
-      SK.purchase().then(function (r) {
+      // Tag the purchase with the signed-in account (if any); link after so web access unlocks too.
+      SK.purchase({ accountToken: window.__financeUserId || null }).then(function (r) {
+        if (r && r.active && window.__financeToken) { try { window.__linkSubscription(); } catch (e) {} }
         subBtn.disabled = false; subBtn.textContent = label;
         if (r && r.active) gate(true);
       }).catch(function () { subBtn.disabled = false; subBtn.textContent = label; });
@@ -183,6 +185,30 @@
     check();
     if (P.App) { try { P.App.addListener("appStateChange", function (s) { if (s && s.isActive) check(); }); } catch (e) {} }
   }
+
+  // ---------- Link the Apple subscription to the signed-in account (for web / cross-device access) ----------
+  var FUNCTIONS_URL = "https://vanpeuarngjygdgovuux.supabase.co/functions/v1";
+  window.__linkSubscription = function () {
+    var SK = P.StoreKit;
+    var token = window.__financeToken;
+    if (!SK || !SK.syncTransaction || !token) return;
+    try {
+      SK.syncTransaction().then(function (r) {
+        if (!r || !r.jws) return;                 // nothing active to claim
+        fetch(FUNCTIONS_URL + "/sync-subscription", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+          body: JSON.stringify({ jws: r.jws })
+        }).catch(function () {});
+      }).catch(function () {});
+    } catch (e) {}
+  };
+  // supabase-sync calls this when a user signs in / restores a session → claims the subscription.
+  window.__onSignedIn = function (userId, token) {
+    window.__financeUserId = userId; window.__financeToken = token;
+    window.__linkSubscription();
+  };
+
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initPaywall);
   else initPaywall();
 })();
