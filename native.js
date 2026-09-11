@@ -95,6 +95,24 @@
     } catch (e) { shareText(); }
   };
 
+  // ---------- Ask for an App Store rating at a genuine "win" moment (native only) ----------
+  // index.html calls this after the user logs a trade. We wait until they're clearly engaged
+  // (10+ logged entries) and then ask iOS ONCE; iOS itself decides whether to actually show the
+  // prompt and caps it at 3/year, so we never nag. Never fired on launch or from a button.
+  window.__maybeAskReview = function () {
+    var SK = P.StoreKit;
+    if (!SK || !SK.requestReview) return;                        // plugin/method absent → no-op
+    var COUNT_KEY = "native.review.events", ASKED_KEY = "native.review.asked", THRESHOLD = 10;
+    try {
+      if (localStorage.getItem(ASKED_KEY) === "1") return;       // only ask once, ever
+      var n = (parseInt(localStorage.getItem(COUNT_KEY), 10) || 0) + 1;
+      localStorage.setItem(COUNT_KEY, String(n));
+      if (n < THRESHOLD) return;                                 // not engaged enough yet
+      localStorage.setItem(ASKED_KEY, "1");
+      SK.requestReview().catch(function () {});                  // iOS decides whether to show it
+    } catch (e) {}
+  };
+
   // Lock on cold start, and whenever the app returns from the background. Going to the
   // background drops the veil immediately so account data isn't shown in the app switcher.
   if (window.biometricLockEnabled()) { showVeil(); tryUnlock(); }
@@ -111,8 +129,8 @@
   function initPaywall() {
     var pw = document.getElementById("pw-overlay");
     if (!pw) return;
-    var SK = P.StoreKit;
-    if (!SK) return;                    // plugin absent → don't trap the user (fail open)
+    var SK = P.StoreKit || P.PlayBilling;   // iOS → StoreKit, Android → Play Billing (same JS interface)
+    if (!SK) return;                    // neither plugin present → don't trap the user (fail open)
 
     var html = document.documentElement;
     var appName = (window.SYNC_CONFIG && window.SYNC_CONFIG.app) || "pnl";

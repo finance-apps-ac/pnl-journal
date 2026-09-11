@@ -1633,6 +1633,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     if (window.nativeTap) window.nativeTap("MEDIUM");   // buy logged — success haptic
     render();
     this.reset();
+    try { if (window.__maybeAskReview) window.__maybeAskReview(); } catch (e) {}   // native-only rating ask
   });
 
   // SELL → all trades. Closes shares of the chosen holding, records realized P&L, subtracts
@@ -1664,6 +1665,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     render();
     this.reset();
     populateSellHoldings();
+    try { if (window.__maybeAskReview) window.__maybeAskReview(); } catch (e) {}   // native-only rating ask
   });
 
   // ---------- add realized-P&L entry ----------
@@ -1692,6 +1694,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     });
     persist(); render();
     this.reset();
+    try { if (window.__maybeAskReview) window.__maybeAskReview(); } catch (e) {}   // native-only rating ask
   });
 
   // ---------- add holding ----------
