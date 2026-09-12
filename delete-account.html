@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Delete Your Account — P&L Trading Journal & Budget Tracker</title>
+<style>
+  :root{
+    --bg:#080D1A; --surface:#0F1728; --border:#26324E; --ink:#EAF2FB; --ink-soft:#94A4BF;
+    --accent:#2FD3E1; --maxw:760px;
+    --font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#F4F6FB; --surface:#FFFFFF; --border:#DCE3EE; --ink:#0F1A2E; --ink-soft:#54627C; --accent:#0AA3B2; }
+  }
+  *,*::before,*::after{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.65;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:clamp(28px,6vw,64px) clamp(18px,5vw,32px) 80px;}
+  .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:700;}
+  h1{font-size:clamp(26px,5vw,36px);font-weight:800;letter-spacing:-.02em;margin:10px 0 4px;}
+  .updated{color:var(--ink-soft);font-size:14px;margin:0 0 8px;}
+  .intro{color:var(--ink-soft);font-size:15.5px;margin:18px 0 8px;}
+  h2{font-size:18px;font-weight:700;margin:34px 0 8px;padding-top:20px;border-top:1px solid var(--border);}
+  h2:first-of-type{border-top:0;}
+  p,li{font-size:15px;color:var(--ink);}
+  p{margin:10px 0;}
+  ul,ol{margin:10px 0;padding-left:22px;}
+  li{margin:7px 0;}
+  a{color:var(--accent);}
+  strong{font-weight:650;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin:16px 0;}
+  ol.steps li{margin:12px 0;}
+  footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);color:var(--ink-soft);font-size:13.5px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Account &amp; Data Deletion</div>
+  <h1>Delete Your Account</h1>
+  <p class="updated">Last updated: September 12, 2026</p>
+  <p class="intro">This page explains how to delete your account and associated data for <strong>P&amp;L – Stock Trading Journal</strong> and <strong>Budget – Annual Tracker</strong>, the apps provided by Anna Cardoso. Your financial data is yours, and you can remove it at any time.</p>
+
+  <h2>Delete directly in the app (fastest)</h2>
+  <ol class="steps">
+    <li>Open the app and sign in to your account.</li>
+    <li>Go to <strong>Settings</strong> (the gear / menu icon).</li>
+    <li>Tap <strong>Delete account</strong>.</li>
+    <li>Confirm when prompted. Your account and all associated data are deleted <strong>immediately and permanently</strong>.</li>
+  </ol>
+
+  <h2>Or request deletion by email</h2>
+  <p>If you can’t access the app, email <a href="mailto:support@financelog.app">support@financelog.app</a> from the email address on your account and ask us to delete it. Please use the subject line <strong>“Delete my account.”</strong> We will verify your request and delete your account and data within <strong>30 days</strong>, and confirm by email once it’s done.</p>
+
+  <h2>What is deleted</h2>
+  <p>When your account is deleted, we permanently remove:</p>
+  <ul>
+    <li>Your account credentials (email address and password hash).</li>
+    <li>All data you entered into the app — trades, holdings, contributions, budget figures, and any notes.</li>
+    <li>Any settings and preferences linked to your account.</li>
+  </ul>
+
+  <h2>What is kept, and for how long</h2>
+  <p>We do <strong>not</strong> retain a copy of your account data after deletion. Deletion from our live database (Supabase) is immediate; residual copies in encrypted backups are purged on our provider’s rolling backup cycle within <strong>30 days</strong>. We keep <strong>no</strong> personal data beyond that period. We do not sell your data or share it for advertising at any time.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about account deletion or your data? Email <a href="mailto:support@financelog.app">support@financelog.app</a>. See also our <a href="privacy.html">Privacy Policy</a>.</p>
+
+  <footer>© 2026 Anna Cardoso. All rights reserved.</footer>
+</div>
+</body>
+</html>
