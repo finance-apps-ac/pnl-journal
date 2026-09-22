@@ -442,6 +442,28 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     </div>
   </section>
 
+  <section class="tiles" id="acctSummary" style="margin-bottom:16px;" aria-label="Account value">
+    <div class="tile">
+      <div class="label">Invested</div>
+      <div class="value" id="acctInvested">—</div>
+      <div class="sub">holdings market value</div>
+    </div>
+    <div class="tile">
+      <div class="label">Cash</div>
+      <div class="value" style="display:flex; align-items:baseline; gap:1px;">
+        <span>$</span>
+        <input id="acctCash" type="number" step="any" min="0" inputmode="decimal" placeholder="0"
+          style="font:inherit; color:inherit; background:transparent; border:none; outline:none; width:100%; min-width:0; padding:0;" aria-label="Cash on hand">
+      </div>
+      <div class="sub">tap to edit</div>
+    </div>
+    <div class="tile">
+      <div class="label">Total account value</div>
+      <div class="value" id="acctTotal">—</div>
+      <div class="sub">invested + cash</div>
+    </div>
+  </section>
+
   <section class="card">
     <details class="addform" id="addDetails" open>
       <summary>Add a trade</summary>
@@ -488,28 +510,6 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
         </div>
       </form>
     </details>
-  </section>
-
-  <section class="tiles" id="acctSummary" style="margin-bottom:16px;" aria-label="Account value">
-    <div class="tile">
-      <div class="label">Invested</div>
-      <div class="value" id="acctInvested">—</div>
-      <div class="sub">holdings market value</div>
-    </div>
-    <div class="tile">
-      <div class="label">Cash</div>
-      <div class="value" style="display:flex; align-items:baseline; gap:1px;">
-        <span>$</span>
-        <input id="acctCash" type="number" step="any" min="0" inputmode="decimal" placeholder="0"
-          style="font:inherit; color:inherit; background:transparent; border:none; outline:none; width:100%; min-width:0; padding:0;" aria-label="Cash on hand">
-      </div>
-      <div class="sub">tap to edit</div>
-    </div>
-    <div class="tile">
-      <div class="label">Total account value</div>
-      <div class="value" id="acctTotal">—</div>
-      <div class="sub">invested + cash</div>
-    </div>
   </section>
 
   <section class="card">
