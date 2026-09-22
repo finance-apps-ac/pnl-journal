@@ -206,13 +206,17 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   .field.wide { grid-column: span 2; }
   .field label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-soft); }
   .field input, .field select { background: var(--surface-2); border: 1px solid var(--border);
-          border-radius: 8px; padding: 8px 10px; font-size: 16px; width: 100%; min-width: 0; max-width: 100%; }
+          border-radius: 8px; padding: 8px 10px; font-size: 13.5px; width: 100%; min-width: 0; max-width: 100%; }
   /* iOS Safari sizes date inputs to their content: too wide with the native appearance
      (overflows the column), then too narrow once appearance is removed and the field is
      empty. Removing the appearance AND pinning min-width keeps them full-column-width always. */
-  /* font-size:16px stops iOS from auto-zooming the page when the date field is tapped
-     (iOS zooms any focused input under 16px, which made the native calendar look huge). */
-  .field input[type="date"] { -webkit-appearance: none; appearance: none; min-width: 100%; box-sizing: border-box; font-size: 16px; }
+  .field input[type="date"] { -webkit-appearance: none; appearance: none; min-width: 100%; box-sizing: border-box; font-size: 16px; color-scheme: dark; accent-color: var(--accent); }
+  /* The native Chrome date-picker popup scales with the field's font-size. On desktop (mouse)
+     shrink the field font so the calendar is small; touch keeps 16px to avoid iOS focus-zoom. */
+  @media (pointer: fine) { .field input[type="date"] { font-size: 11px; } }
+  /* Picker follows the app theme (dark = settled gray); selected day uses the cyan accent. */
+  :root[data-theme="light"] .field input[type="date"] { color-scheme: light; }
+  @media (prefers-color-scheme: light) { :root:not([data-theme]) .field input[type="date"] { color-scheme: light; } }
   /* Force the date value/placeholder area to fill the field so an EMPTY date input
      (which iOS otherwise collapses to a tiny width) stays full column width, showing
      its gray mm/dd/yyyy preset just like the other fields. */
