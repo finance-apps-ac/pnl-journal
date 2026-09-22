@@ -163,6 +163,14 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   .tile .value { font-family: var(--font-mono); font-size: 23px; font-weight: 600; margin-top: 7px;
                  font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
   .tile .sub { font-size: 11.5px; color: var(--ink-soft); margin-top: 3px; }
+  /* Confirmation toast + row flash so logging a trade is visibly acknowledged */
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(12px);
+    background: var(--surface); color: var(--ink); border: 1px solid var(--gain); font-weight: 600; font-size: 14px;
+    padding: 12px 18px; border-radius: 999px; box-shadow: var(--shadow); opacity: 0; pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease; z-index: 2147483000; max-width: 88vw; text-align: center; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @keyframes flashRow { 0%,70% { background: var(--gain-soft); } 100% { background: transparent; } }
+  tr.flash-new > td { animation: flashRow 1.8s ease; }
   .pos { color: var(--gain); } .neg { color: var(--loss); }
 
   /* ---------- cards / charts ---------- */
@@ -442,7 +450,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     </div>
   </section>
 
-  <section class="tiles" id="acctSummary" style="margin-bottom:16px;" aria-label="Account value">
+  <section class="tiles" id="acctSummary" style="margin-top:18px; margin-bottom:18px;" aria-label="Account value">
     <div class="tile">
       <div class="label">Invested</div>
       <div class="value" id="acctInvested">—</div>
@@ -1141,7 +1149,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       var basis = costNum != null ? costNum * Number(x.shares) : null;
       var unreal = (basis != null && hasVal) ? val - basis : null;
       if (unreal != null) { totUnreal += unreal; hasUnreal = true; }
-      body += '<tr>' +
+      body += '<tr' + (flashSym && String(x.symbol).toUpperCase() === flashSym ? ' class="flash-new"' : '') + '>' +
         '<td class="l sym">' + esc(x.symbol) + '</td>' +
         '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-pshares="' + x.id +
           '" value="' + (x.shares === "" || x.shares == null ? "" : esc(x.shares)) + '" placeholder="—"></td>' +
@@ -1168,6 +1176,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     document.getElementById("holdingsBody").innerHTML = body;
     document.getElementById("holdingsTotal").textContent = money(totVal) + " market value";
     investedTotal = totVal; updateAccountSummary();   // Account summary (Invested / Cash / Total)
+    flashSym = null;   // one-shot row flash consumed once rendered
 
     // Edits map back to the right source: a manual holding, or the underlying open trade.
     function updatePos(id, field, val) {
@@ -1658,6 +1667,9 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       if (el.showPicker) { try { el.showPicker(); } catch (e) {} }
     });
     el.addEventListener("blur", function () { if (!el.value) el.type = "text"; });
+    // After a form reset (e.g. logging a trade), revert to the text placeholder so the
+    // "08 / 21 / 2026" example returns instead of a bare, narrow native date box.
+    if (el.form) el.form.addEventListener("reset", function () { setTimeout(function () { if (!el.value) el.type = "text"; }, 0); });
   }
   datePlaceholder("b-open", "08 / 21 / 2026");
   datePlaceholder("s-close", "08 / 21 / 2026");
@@ -1665,6 +1677,16 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
 
   // BUY → holdings. Shares add, average cost blends. Remembers open date / direction / setup
   // so a later Sell reconstructs the full round-trip in All trades.
+  // Visible confirmation when something is logged: a brief toast + a green row flash.
+  var flashSym = null, _toastT = null;
+  function showToast(msg) {
+    var el = document.getElementById("toast");
+    if (!el) { el = document.createElement("div"); el.id = "toast"; el.setAttribute("role", "status"); el.setAttribute("aria-live", "polite"); document.body.appendChild(el); }
+    el.textContent = msg; el.classList.add("show");
+    if (_toastT) clearTimeout(_toastT);
+    _toastT = setTimeout(function () { el.classList.remove("show"); }, 2600);
+  }
+
   buyForm.addEventListener("submit", function (e) {
     e.preventDefault();
     var g = function (id) { return document.getElementById(id).value; };
@@ -1681,7 +1703,9 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       persistH();
     }
     if (window.nativeTap) window.nativeTap("MEDIUM");   // buy logged — success haptic
+    flashSym = sym;
     render();
+    showToast("✓ Bought " + qty + " " + sym + " — added to holdings");
     this.reset();
     try { if (window.__maybeAskReview) window.__maybeAskReview(); } catch (e) {}   // native-only rating ask
   });
@@ -1712,7 +1736,9 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     upsertHolding(sym, -qty);
     persist();
     if (window.nativeTap) window.nativeTap("MEDIUM");   // sell logged — success haptic
+    flashSym = sym;
     render();
+    showToast("✓ Sold " + qty + " " + sym + " · " + signed(Math.round((exit - entry) * qty)));
     this.reset();
     populateSellHoldings();
     try { if (window.__maybeAskReview) window.__maybeAskReview(); } catch (e) {}   // native-only rating ask
@@ -1743,6 +1769,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       strategy: "", notes: g("p-notes").trim()
     });
     persist(); render();
+    showToast("✓ Logged " + signed(amount) + " realized P&L");
     this.reset();
     try { if (window.__maybeAskReview) window.__maybeAskReview(); } catch (e) {}   // native-only rating ask
   });
@@ -1768,7 +1795,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       holdings.push({ id: uid(), symbol: sym, shares: sh, cost: cost,
         value: valIn != null ? valIn : (cost !== "" ? cost * sh : 0) });
     }
-    persistH(); renderHoldings(); this.reset();
+    flashSym = sym; persistH(); renderHoldings(); showToast("✓ Added " + sym + " to holdings"); this.reset();
   });
 
   // ---------- note reader/editor popup (open a holding's full note to read or edit) ----------
