@@ -1391,11 +1391,11 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     var yr = selectedYear();
     var cutoff = tfCutoff(tradeTF);
     var list = trades.slice().sort(function (a, b) {
-      return new Date(b.openDate) - new Date(a.openDate);
+      return new Date(b.closeDate || b.openDate) - new Date(a.closeDate || a.openDate);
     }).filter(function (t) {
       if (compute(t).open) return false;   // open positions live in Current Holdings, not here
       if (yr !== "all") { var dy = t.closeDate || t.openDate; if (!dy || dy.slice(0, 4) !== yr) return false; }
-      if (cutoff) { var d = t.openDate || t.closeDate; if (!d || new Date(d) < cutoff) return false; }
+      if (cutoff) { var d = t.closeDate || t.openDate; if (!d || new Date(d) < cutoff) return false; }
       return true;
     });
     renderTradesChart(list);               // performance visual reflects the whole timeframe, not just the page
@@ -1411,7 +1411,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       var valDisp = (t.saleValue !== "" && t.saleValue != null) ? t.saleValue
           : (t.manualPnl == null && hasQty && t.exit !== "" && t.exit != null ? Math.round(Number(t.exit) * Number(t.qty) * 100) / 100 : "");
       body += '<tr>' +
-        '<td class="l">' + fmtDay(t.openDate) + '</td>' +
+        '<td class="l">' + fmtDay(t.closeDate || t.openDate) + '</td>' +
         '<td class="l"><input class="tkr-input" type="text" data-tkr="' + t.id +
           '" value="' + esc(tickersStr(t) || t.symbol || "") + '" placeholder="＋ tickers" autocapitalize="characters" spellcheck="false"></td>' +
         '<td class="num">' + (c.open
