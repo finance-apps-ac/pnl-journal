@@ -375,6 +375,14 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   .pnl-pill.pos { color: var(--gain); }
   .pnl-pill.neg { color: var(--loss); }
   .pnl-pill.flat { color: var(--ink-faint); }
+  /* Buy price shown under the P&L — edit inline to correct a trade's cost basis. */
+  .basis-row { display: flex; align-items: center; justify-content: flex-end; gap: 4px;
+               margin-top: 4px; }
+  .basis-lbl { font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-faint); }
+  .basis-input { width: 62px; text-align: right; background: var(--surface-2); border: 1px solid var(--border);
+                 border-radius: 6px; padding: 3px 6px; font-size: 11.5px; font-family: var(--font-mono);
+                 font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+  .basis-input:focus { border-color: var(--accent); color: var(--ink); outline: none; }
   .tkr-input { width: 118px; max-width: 40vw; background: var(--surface-2); border: 1px solid var(--border);
                border-radius: 6px; padding: 5px 8px; font-size: 12.5px; font-family: var(--font-mono);
                text-transform: uppercase; letter-spacing: .5px; color: var(--violet); }
@@ -742,11 +750,6 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
         <span id="noteModalTitle">Note</span>
         <button type="button" id="noteModalClose" class="note-modal-x" title="Close">✕</button>
       </div>
-      <div id="noteModalBuy" hidden style="display:flex; align-items:center; gap:10px; margin:0 0 12px;">
-        <label for="noteModalBuyInput" style="font-size:12.5px; color:var(--ink-soft); white-space:nowrap;">Buy price / share ($)</label>
-        <input id="noteModalBuyInput" type="number" step="any" min="0" inputmode="decimal" placeholder="—"
-          style="flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; color:var(--ink); font-family:var(--font-mono); font-size:16px; padding:9px 11px;">
-      </div>
       <textarea id="noteModalText" placeholder="Notes for planning this position…"></textarea>
       <div class="note-modal-foot"><button type="button" id="noteModalSave" class="btn">Save</button></div>
     </div>
@@ -915,9 +918,13 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
         // so it's excluded from totals and the user can add the buy price.
         return { open: false, incomplete: true, pnl: null, pnlPct: null, days: null };
       }
-      var gross = (t.direction === "short" ? (entryNum - t.exit) : (t.exit - entryNum)) * t.qty;
-      pnl = gross - (Number(t.fees) || 0);
+      // P&L is proceeds − cost basis, so the numbers shown in the row ARE what drive it:
+      //   Value (proceeds) − Buy price × Qty. Falls back to exit × qty when no explicit
+      //   Value is set (identical to the old (exit − entry) × qty for legacy trades).
       var basis = entryNum * t.qty;
+      var proceeds = (t.saleValue !== "" && t.saleValue != null) ? Number(t.saleValue) : (Number(t.exit) * t.qty);
+      var gross = (t.direction === "short" ? (basis - proceeds) : (proceeds - basis));
+      pnl = gross - (Number(t.fees) || 0);
       pnlPct = basis ? (pnl / basis) * 100 : 0;
       days = Math.max(0, Math.round((new Date(t.closeDate) - new Date(t.openDate)) / 86400000));
     }
@@ -1498,7 +1505,12 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
               ? '<span class="pnl-pill flat">—</span>'
               : c.incomplete
                 ? '<input class="fix-cost" type="number" step="any" min="0" inputmode="decimal" data-fixcost="' + t.id + '" placeholder="＋ buy $" title="Add your buy price per share to compute P&L">'
-                : '<span class="pnl-pill ' + cls(c.pnl) + '">' + signed(c.pnl) + '</span>') + '</td>' +
+                : '<span class="pnl-pill ' + cls(c.pnl) + '">' + signed(c.pnl) + '</span>' +
+                  (c.manual ? '' :
+                    '<span class="basis-row"><span class="basis-lbl">buy</span>' +
+                    '<input class="basis-input" type="number" step="any" min="0" inputmode="decimal" data-tbasis="' + t.id +
+                      '" value="' + (t.entry === "" || t.entry == null ? "" : esc(t.entry)) + '" placeholder="—" title="Buy price per share — edit to correct this trade\'s P&L">' +
+                    '<span class="basis-lbl">/sh</span></span>')) + '</td>' +
         '<td class="l"><div class="note-cell">' +
           '<input class="note-input" type="text" data-tnote="' + t.id + '" value="' + esc(tnote) + '" placeholder="＋ note" spellcheck="false">' +
           '<button type="button" class="note-exp" data-texp="' + t.id + '" title="Open note to read / edit">⤢</button>' +
@@ -1567,6 +1579,13 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       inp.addEventListener("change", function () {
         var tr = trades.filter(function (z) { return z.id === inp.getAttribute("data-fixcost"); })[0];
         if (tr && inp.value !== "" && Number(inp.value) >= 0) { tr.entry = parseFloat(inp.value); persist(); render(); }
+      });
+    });
+    // Buy price shown under the P&L — edit it to correct a trade's cost basis (recomputes P&L).
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tbasis]"), function (inp) {
+      inp.addEventListener("change", function () {
+        var tr = trades.filter(function (z) { return z.id === inp.getAttribute("data-tbasis"); })[0];
+        if (tr) { tr.entry = inp.value === "" ? "" : parseFloat(inp.value); persist(); render(); }
       });
     });
   }
@@ -1847,12 +1866,6 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     noteModalRef = { obj: obj, isTrade: !!t };
     document.getElementById("noteModalTitle").textContent = (obj.symbol || (t ? "Trade" : "Position")) + " · note";
     document.getElementById("noteModalText").value = t ? [t.strategy, t.notes].filter(Boolean).join(" · ") : (obj.note || "");
-    // Editable cost basis: for a per-share trade (not a manual P&L entry), show the Buy price
-    // so it can be corrected — e.g. a sell that inherited the position's average cost.
-    var buyWrap = document.getElementById("noteModalBuy"), buyInp = document.getElementById("noteModalBuyInput");
-    var perShare = !!t && (t.manualPnl == null || t.manualPnl === "") && !(t.qty === "" || t.qty == null);
-    if (buyWrap) buyWrap.hidden = !perShare;
-    if (perShare && buyInp) buyInp.value = (t.entry === "" || t.entry == null) ? "" : t.entry;
     document.getElementById("noteModal").hidden = false;
     document.getElementById("noteModalText").focus();
   }
@@ -1861,8 +1874,6 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       var v = document.getElementById("noteModalText").value;
       if (noteModalRef.isTrade) {
         noteModalRef.obj.notes = v; noteModalRef.obj.strategy = "";
-        var buyWrap = document.getElementById("noteModalBuy"), buyInp = document.getElementById("noteModalBuyInput");
-        if (buyWrap && !buyWrap.hidden && buyInp) { var bp = buyInp.value.trim(); noteModalRef.obj.entry = bp === "" ? "" : parseFloat(bp); }
         persist();
       }
       else { noteModalRef.obj.note = v; persistH(); }
