@@ -742,8 +742,13 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
         <span id="noteModalTitle">Note</span>
         <button type="button" id="noteModalClose" class="note-modal-x" title="Close">✕</button>
       </div>
+      <div id="noteModalBuy" hidden style="display:flex; align-items:center; gap:10px; margin:0 0 12px;">
+        <label for="noteModalBuyInput" style="font-size:12.5px; color:var(--ink-soft); white-space:nowrap;">Buy price / share ($)</label>
+        <input id="noteModalBuyInput" type="number" step="any" min="0" inputmode="decimal" placeholder="—"
+          style="flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; color:var(--ink); font-family:var(--font-mono); font-size:16px; padding:9px 11px;">
+      </div>
       <textarea id="noteModalText" placeholder="Notes for planning this position…"></textarea>
-      <div class="note-modal-foot"><button type="button" id="noteModalSave" class="btn">Save note</button></div>
+      <div class="note-modal-foot"><button type="button" id="noteModalSave" class="btn">Save</button></div>
     </div>
   </div>
 </div>
@@ -1842,13 +1847,24 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     noteModalRef = { obj: obj, isTrade: !!t };
     document.getElementById("noteModalTitle").textContent = (obj.symbol || (t ? "Trade" : "Position")) + " · note";
     document.getElementById("noteModalText").value = t ? [t.strategy, t.notes].filter(Boolean).join(" · ") : (obj.note || "");
+    // Editable cost basis: for a per-share trade (not a manual P&L entry), show the Buy price
+    // so it can be corrected — e.g. a sell that inherited the position's average cost.
+    var buyWrap = document.getElementById("noteModalBuy"), buyInp = document.getElementById("noteModalBuyInput");
+    var perShare = !!t && (t.manualPnl == null || t.manualPnl === "") && !(t.qty === "" || t.qty == null);
+    if (buyWrap) buyWrap.hidden = !perShare;
+    if (perShare && buyInp) buyInp.value = (t.entry === "" || t.entry == null) ? "" : t.entry;
     document.getElementById("noteModal").hidden = false;
     document.getElementById("noteModalText").focus();
   }
   function closeNoteModal(save) {
     if (save && noteModalRef) {
       var v = document.getElementById("noteModalText").value;
-      if (noteModalRef.isTrade) { noteModalRef.obj.notes = v; noteModalRef.obj.strategy = ""; persist(); }
+      if (noteModalRef.isTrade) {
+        noteModalRef.obj.notes = v; noteModalRef.obj.strategy = "";
+        var buyWrap = document.getElementById("noteModalBuy"), buyInp = document.getElementById("noteModalBuyInput");
+        if (buyWrap && !buyWrap.hidden && buyInp) { var bp = buyInp.value.trim(); noteModalRef.obj.entry = bp === "" ? "" : parseFloat(bp); }
+        persist();
+      }
       else { noteModalRef.obj.note = v; persistH(); }
       render();
     }
