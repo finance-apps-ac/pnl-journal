@@ -1703,6 +1703,17 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     if (_toastT) clearTimeout(_toastT);
     _toastT = setTimeout(function () { el.classList.remove("show"); }, 2600);
   }
+  // After a log, bring the flashed holding row into view — but only if it's off-screen,
+  // so the page never jumps when the row is already visible. (Full sells leave no row.)
+  function scrollFlashedIntoView() {
+    var row = document.querySelector("#holdingsBody tr.flash-new");
+    if (!row) return;
+    var r = row.getBoundingClientRect();
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    if (r.top < 70 || r.bottom > vh - 20) {   // not fully visible → ease it into view
+      try { row.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) { row.scrollIntoView(); }
+    }
+  }
 
   buyForm.addEventListener("submit", function (e) {
     e.preventDefault();
@@ -1725,6 +1736,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     flashSym = sym;
     render();
     showToast("✓ Bought " + qty + " " + sym + " · −" + money(cost) + " cash");
+    scrollFlashedIntoView();
     this.reset();
     try { if (window.__maybeAskReview) window.__maybeAskReview(); } catch (e) {}   // native-only rating ask
   });
@@ -1760,6 +1772,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     flashSym = sym;
     render();
     showToast("✓ Sold " + qty + " " + sym + " · +" + money(proceeds) + " cash");
+    scrollFlashedIntoView();
     this.reset();
     populateSellHoldings();
     try { if (window.__maybeAskReview) window.__maybeAskReview(); } catch (e) {}   // native-only rating ask
@@ -1816,7 +1829,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       holdings.push({ id: uid(), symbol: sym, shares: sh, cost: cost,
         value: valIn != null ? valIn : (cost !== "" ? cost * sh : 0) });
     }
-    flashSym = sym; persistH(); renderHoldings(); showToast("✓ Added " + sym + " to holdings"); this.reset();
+    flashSym = sym; persistH(); renderHoldings(); showToast("✓ Added " + sym + " to holdings"); scrollFlashedIntoView(); this.reset();
   });
 
   // ---------- note reader/editor popup (open a holding's full note to read or edit) ----------
