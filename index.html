@@ -74,10 +74,13 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     --radius: 14px;
     --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    color-scheme: dark;               /* native controls (date picker, scrollbars) render dark */
+    accent-color: var(--accent);      /* selected calendar day uses the cyan accent */
   }
 
   /* ---------- Light theme (auto = follows system; toggle = manual override) ---------- */
   :root[data-theme="light"] {
+    color-scheme: light;
     --bg:#F4F6FB; --surface:#FFFFFF; --surface-2:#EDF1F8; --border:#DCE3EE;
     --ink:#0F1A2E; --ink-soft:#54627C; --ink-faint:#8492AC;
     --accent:#0AA3B2; --accent-soft:#E1F4F6;
@@ -89,6 +92,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme]) {
+      color-scheme: light;
       --bg:#F4F6FB; --surface:#FFFFFF; --surface-2:#EDF1F8; --border:#DCE3EE;
       --ink:#0F1A2E; --ink-soft:#54627C; --ink-faint:#8492AC;
       --accent:#0AA3B2; --accent-soft:#E1F4F6;
@@ -100,6 +104,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     }
   }
   :root[data-theme="dark"] {
+    color-scheme: dark;
     --bg:#080D1A; --surface:#0F1728; --surface-2:#172139; --border:#26324E;
     --ink:#EAF2FB; --ink-soft:#94A4BF; --ink-faint:#647294;
     --accent:#2FD3E1; --accent-soft:#0E2C36;
@@ -1021,7 +1026,10 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     Array.prototype.forEach.call(document.querySelectorAll("[data-contrib]"), function (inp) {
       inp.addEventListener("change", function () {
         var k = inp.getAttribute("data-contrib");
+        var oldV = (contrib[k] === "" || contrib[k] == null) ? 0 : (Number(contrib[k]) || 0);
         if (inp.value === "") delete contrib[k]; else contrib[k] = parseFloat(inp.value);
+        var newV = inp.value === "" ? 0 : (parseFloat(inp.value) || 0);
+        cash += (newV - oldV); persistCash(); updateAccountSummary();   // a deposit adds to cash (delta on edit)
         persistC(); renderContrib(); renderWithdrawals();
       });
     });
@@ -1111,6 +1119,8 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     Array.prototype.forEach.call(document.querySelectorAll("[data-wdel]"), function (b) {
       b.addEventListener("click", function () {
         var id = b.getAttribute("data-wdel");
+        var w0 = withdraw.filter(function (w) { return String(w.id) === String(id); })[0];
+        if (w0) { cash += Number(w0.amount) || 0; persistCash(); updateAccountSummary(); }   // undo a withdrawal → cash back
         withdraw = withdraw.filter(function (w) { return String(w.id) !== String(id); });
         persistW(); renderWithdrawals(); renderContrib();   // donut/total reflect the change
       });
@@ -1123,6 +1133,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
         var a = parseFloat(document.getElementById("wAmt").value);
         if (!d || !(a > 0)) return;
         withdraw.push({ id: "w" + Date.now(), date: d, amount: a });
+        cash -= a; persistCash(); updateAccountSummary();   // withdrawal takes cash out
         document.getElementById("wDate").value = "";
         document.getElementById("wAmt").value = "";
         persistW(); renderWithdrawals(); renderContrib();   // donut/total reflect the change
@@ -1709,9 +1720,11 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       persistH();
     }
     if (window.nativeTap) window.nativeTap("MEDIUM");   // buy logged — success haptic
+    var cost = entry * qty;
+    cash -= cost; persistCash();                        // buying spends cash
     flashSym = sym;
     render();
-    showToast("✓ Bought " + qty + " " + sym + " — added to holdings");
+    showToast("✓ Bought " + qty + " " + sym + " · −" + money(cost) + " cash");
     this.reset();
     try { if (window.__maybeAskReview) window.__maybeAskReview(); } catch (e) {}   // native-only rating ask
   });
@@ -1742,9 +1755,11 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     upsertHolding(sym, -qty);
     persist();
     if (window.nativeTap) window.nativeTap("MEDIUM");   // sell logged — success haptic
+    var proceeds = exit * qty;
+    cash += proceeds; persistCash();                    // selling returns cash
     flashSym = sym;
     render();
-    showToast("✓ Sold " + qty + " " + sym + " · " + signed(Math.round((exit - entry) * qty)));
+    showToast("✓ Sold " + qty + " " + sym + " · +" + money(proceeds) + " cash");
     this.reset();
     populateSellHoldings();
     try { if (window.__maybeAskReview) window.__maybeAskReview(); } catch (e) {}   // native-only rating ask
