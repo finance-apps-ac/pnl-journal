@@ -1510,7 +1510,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
                     '<span class="basis-row"><span class="basis-lbl">buy</span>' +
                     '<input class="basis-input" type="number" step="any" min="0" inputmode="decimal" data-tbasis="' + t.id +
                       '" value="' + (t.entry === "" || t.entry == null ? "" : esc(t.entry)) + '" placeholder="—" title="Buy price per share — edit to correct this trade\'s P&L">' +
-                    '<span class="basis-lbl">/sh</span></span>')) + '</td>' +
+                    '<span class="basis-lbl">/share</span></span>')) + '</td>' +
         '<td class="l"><div class="note-cell">' +
           '<input class="note-input" type="text" data-tnote="' + t.id + '" value="' + esc(tnote) + '" placeholder="＋ note" spellcheck="false">' +
           '<button type="button" class="note-exp" data-texp="' + t.id + '" title="Open note to read / edit">⤢</button>' +
