@@ -91,6 +91,10 @@
     if (a.indexOf(k) < 0) a.push(k);
     origSet(DIRTY_KEY, JSON.stringify(a));
   }
+  // Running inside the iOS/Android store app (Capacitor injects its bridge before page scripts run)?
+  function inNativeApp() {
+    return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  }
   function clearDirty(keys) {
     var a = getDirty(); if (a == null) { origSet(DIRTY_KEY, "[]"); return; }
     origSet(DIRTY_KEY, JSON.stringify(a.filter(function (k) { return keys.indexOf(k) < 0; })));  // keys edited DURING the push stay dirty
@@ -769,7 +773,9 @@
           '<a id="sync-swap">' + (isSignup ? "Log in" : "Create an account") + '</a>' +
         '</div>' +
         (isSignup ? '' : '<div id="sync-forgot"><a id="sync-forgot-link">Forgot password?</a></div>') +
-        (window.DEMO_SEED ? '<div id="sync-demo-wrap"><button type="button" id="sync-demo">Try the demo — no sign-up</button></div>' : '');
+        // Website only: the store apps never show this (the approved iOS/Android builds keep the demo
+        // behind the paywall — Android reviewers reach it via the long-press bypass in native.js).
+        (window.DEMO_SEED && !inNativeApp() ? '<div id="sync-demo-wrap"><button type="button" id="sync-demo">Try the demo — no sign-up</button></div>' : '');
       document.getElementById("sync-primary").onclick = function () { doAuth(authMode); };
       var demoBtn = document.getElementById("sync-demo");
       if (demoBtn) demoBtn.onclick = function () { enterDemo(true); };
@@ -899,7 +905,7 @@
       '<p class="sub">The web app is included with your subscription. Start it in the <b>' + esc(cfg.name) +
         '</b> app for iPhone — 1 week free, then $1.99/month — then sign in here with the same account.</p>' +
       '<div id="sync-err"></div>' +
-      (window.DEMO_SEED ? '<div id="sync-demo-wrap"><button type="button" id="sync-demo">Try the demo — no sign-up</button></div>' : '') +
+      (window.DEMO_SEED && !inNativeApp() ? '<div id="sync-demo-wrap"><button type="button" id="sync-demo">Try the demo — no sign-up</button></div>' : '') +
       '<div id="sync-toggle"><a id="sync-signout">Sign out (' + esc(user.email) + ')</a></div>';
     var demoBtn = document.getElementById("sync-demo");
     if (demoBtn) demoBtn.onclick = function () { enterDemo(true); };
