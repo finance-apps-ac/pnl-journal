@@ -41,6 +41,12 @@
   var REV_KEY = "__sync_rev_" + cfg.app;
   var PUSHED_KEY = "__sync_pushedrev_" + cfg.app;
   var OWNER_KEY = "__sync_owner_" + cfg.app;   // which account the local data belongs to (isolation)
+  // PER-KEY dirty set: exactly which data keys this device has edited but not yet pushed. This is
+  // the fix for the two-live-sessions clobber: a push sends ONLY these keys and keeps every other
+  // key from the current cloud, so an idle/stale second device can never stamp its whole copy
+  // (with an old holdings count) over an edit the other device just made. Persisted so an iOS
+  // freeze can't lose the record. (NOT an app data key.)
+  var DIRTY_KEY = "__sync_dirty_" + cfg.app;
 
   var sb = null;
   var currentUser = null;
@@ -57,23 +63,38 @@
   var origRemove = window.localStorage.removeItem.bind(window.localStorage);
   window.localStorage.setItem = function (k, v) {
     origSet(k, v);
-    if (!applyingRemote && KEYS.indexOf(k) >= 0) onLocalEdit();
+    if (!applyingRemote && KEYS.indexOf(k) >= 0) onLocalEdit(k);
   };
   window.localStorage.removeItem = function (k) {
     origRemove(k);
-    if (!applyingRemote && KEYS.indexOf(k) >= 0) onLocalEdit();
+    if (!applyingRemote && KEYS.indexOf(k) >= 0) onLocalEdit(k);
   };
   // A genuine user edit (only counts once the app is live — boot-time seeding is ignored,
   // otherwise a freshly-loaded empty device would look "dirty" and overwrite the cloud).
-  function onLocalEdit() {
+  function onLocalEdit(k) {
     if (!ready) return;
     origSet(REV_KEY, String(getRev() + 1));   // durably mark "there are unsaved edits"
+    if (k) addDirty(k);                        // record WHICH key changed, for a precise merge-push
     updatePendingBadge();
     schedulePush();
   }
   function getRev()    { var n = Number(origGet(REV_KEY));    return isNaN(n) ? 0 : n; }
   function getPushed() { var n = Number(origGet(PUSHED_KEY)); return isNaN(n) ? 0 : n; }
   function hasUnpushed() { return getRev() > getPushed(); }   // survives reloads — the real fix
+  // Which keys this device edited but hasn't pushed. null = never initialized (a device upgrading
+  // from the old whole-blob version) → callers treat that as "unknown", falling back safely.
+  function getDirty() {
+    try { var a = JSON.parse(origGet(DIRTY_KEY)); return Array.isArray(a) ? a : null; } catch (e) { return null; }
+  }
+  function addDirty(k) {
+    var a = getDirty() || [];
+    if (a.indexOf(k) < 0) a.push(k);
+    origSet(DIRTY_KEY, JSON.stringify(a));
+  }
+  function clearDirty(keys) {
+    var a = getDirty(); if (a == null) { origSet(DIRTY_KEY, "[]"); return; }
+    origSet(DIRTY_KEY, JSON.stringify(a.filter(function (k) { return keys.indexOf(k) < 0; })));  // keys edited DURING the push stay dirty
+  }
 
   /* ---- 2. Cover the screen immediately so app data never flashes pre-login ---- */
   injectStyles();
@@ -182,13 +203,14 @@
     });
     if (updatedAt) origSet(SEEN_KEY, String(updatedAt));   // we now mirror this exact cloud version
     origSet(PUSHED_KEY, String(getRev()));                 // in sync with cloud → nothing left to push
+    origSet(DIRTY_KEY, "[]");                               // …and nothing changed locally that isn't in the cloud
     applyingRemote = false;
     updatePendingBadge();
   }
   function clearLocal() {
     applyingRemote = true;
     KEYS.forEach(function (k) { origRemove(k); });
-    origRemove(SEEN_KEY); origRemove(REV_KEY); origRemove(PUSHED_KEY); origRemove(OWNER_KEY);  // reset all sync markers for the next person
+    origRemove(SEEN_KEY); origRemove(REV_KEY); origRemove(PUSHED_KEY); origRemove(OWNER_KEY); origRemove(DIRTY_KEY);  // reset all sync markers for the next person
     applyingRemote = false;
   }
 
@@ -197,24 +219,75 @@
     return sb.from("user_data").select("data,updated_at").eq("app", cfg.app).maybeSingle()
       .then(function (res) { return res.data || null; });
   }
+  // Build the blob to push: OUR value for every key we changed (the dirty set), and the CURRENT
+  // cloud's value for every key we didn't. This is the two-session clobber fix — we never ship a
+  // stale copy of a key we never touched, so a second device can't stamp its old holdings over an
+  // edit the other device just made. dirty === null (a device upgrading from the old version) →
+  // treat every key as ours for one push, so a genuine pending edit is never dropped.
+  function mergeForPush(cloudData, dirty) {
+    var out = {}; cloudData = cloudData || {};
+    KEYS.forEach(function (k) {
+      var mine = (dirty == null) || (dirty.indexOf(k) >= 0);
+      var cloudHas = Object.prototype.hasOwnProperty.call(cloudData, k);
+      if (mine) {
+        var lv = origGet(k);
+        if (lv !== null) out[k] = lv;                 // our edit wins (null = we deleted it → omit → propagates)
+      } else if (cloudHas) {
+        out[k] = cloudData[k];                        // untouched key the cloud has → keep its (possibly newer) value
+      } else {
+        // Untouched by our dirty-tracking AND absent from the cloud → it's local-only data the cloud
+        // never received (e.g. a key seeded at boot, before sync was ready, like the lots migration).
+        // Send it: it can't clobber anything (cloud has nothing there), and dropping it would lose it.
+        // (This app never removes a whole ledger key — it stores empty arrays — so "cloud lacks it"
+        // reliably means "new local key", not "deleted elsewhere".)
+        var lv2 = origGet(k);
+        if (lv2 !== null) out[k] = lv2;
+      }
+    });
+    return out;
+  }
+  // After a successful merge-push, adopt the merged result locally so this device shows the shared
+  // truth (including the OTHER device's edits we just merged in). Never overwrite a key that got
+  // dirtied again DURING the request — that new edit is still unpushed and must survive.
+  function adoptMerged(payload, updatedAt) {
+    var stillDirty = getDirty() || [], changed = false;
+    applyingRemote = true;
+    KEYS.forEach(function (k) {
+      if (stillDirty.indexOf(k) >= 0) return;
+      var cur = origGet(k);
+      var next = Object.prototype.hasOwnProperty.call(payload, k) ? payload[k] : null;
+      if (next === null) { if (cur !== null) { origRemove(k); changed = true; } }
+      else if (cur !== next) { origSet(k, next); changed = true; }
+    });
+    if (updatedAt) origSet(SEEN_KEY, String(updatedAt));
+    applyingRemote = false;
+    return changed;
+  }
   // push() writes local state up. It records which REV it sent, so success marks exactly that rev
-  // as pushed (edits made DURING the request stay pending and push again).
+  // as pushed (edits made DURING the request stay pending and push again). It pulls first and
+  // MERGES (see mergeForPush) so it only overwrites the keys this device actually changed.
   function push() {
     if (!currentUser) return Promise.resolve();
     var revSent = getRev();
-    return sb.from("user_data").upsert(
-      { user_id: currentUser.id, app: cfg.app, data: gather() },
-      { onConflict: "user_id,app" }
-    ).select("updated_at").maybeSingle().then(function (r) {
-      if (r && !r.error) {
-        if (getPushed() < revSent) origSet(PUSHED_KEY, String(revSent));  // confirmed in the cloud
-        if (r.data && r.data.updated_at) setSeen(r.data.updated_at);
-        updatePendingBadge();
-      }
-      if (DEBUG) dbgShow("PUSHED rev" + revSent + " — " + (r && r.error ? "ERROR " + JSON.stringify(r.error) : "OK, seen=" + (r.data && r.data.updated_at)) +
-        " · " + new Date().toLocaleTimeString());
-      return r;
-    });
+    var dirty = getDirty();
+    return pull().then(function (cloud) {
+      var payload = mergeForPush(cloud && cloud.data, dirty);
+      return sb.from("user_data").upsert(
+        { user_id: currentUser.id, app: cfg.app, data: payload },
+        { onConflict: "user_id,app" }
+      ).select("updated_at").maybeSingle().then(function (r) {
+        if (r && !r.error) {
+          if (getPushed() < revSent) origSet(PUSHED_KEY, String(revSent));  // confirmed in the cloud
+          clearDirty(dirty == null ? KEYS.slice() : dirty);                 // the keys we sent are clean now
+          var changed = adoptMerged(payload, r.data && r.data.updated_at);
+          updatePendingBadge();
+          if (changed) rerender();                                          // reflect any other-device edits we merged in
+        }
+        if (DEBUG) dbgShow("PUSHED rev" + revSent + " keys[" + (dirty == null ? "ALL" : dirty.join(",")) + "] — " +
+          (r && r.error ? "ERROR " + JSON.stringify(r.error) : "OK, seen=" + (r.data && r.data.updated_at)) + " · " + new Date().toLocaleTimeString());
+        return r;
+      });
+    }).catch(function (e) { if (DEBUG) dbgShow("push FAILED: " + (e && e.message)); });  // leave dirty intact → retried
   }
 
   // Normal editing path: a short debounce batches rapid keystrokes but still saves fast.
