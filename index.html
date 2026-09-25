@@ -918,6 +918,95 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     if (seeded.length) { lots = seeded; persistLots(); }
   })();
 
+  // ---------- lot engine (Step 2): which shares a sell draws from, and at what cost basis ----------
+  var LOT_EPS = 1e-9;
+  function lotRound(n) { return Math.round(n * 1e6) / 1e6; }
+  function symOf(s) { return String(s || "").trim().toUpperCase(); }
+  // Open lots for a symbol, OLDEST FIRST. A blank date sorts first (seed/migration lots represent
+  // shares held before lot tracking began, so they're the oldest); ties keep insertion order.
+  function lotsOf(sym) {
+    sym = symOf(sym);
+    return lots.map(function (l, i) { return { l: l, i: i }; })
+      .filter(function (x) { return x.l.symbol === sym && Number(x.l.remaining) > LOT_EPS; })
+      .sort(function (a, b) {
+        var da = a.l.date || "", db = b.l.date || "";
+        if (da !== db) return da < db ? -1 : 1;
+        return a.i - b.i;
+      }).map(function (x) { return x.l; });
+  }
+  // Keep a symbol's lots summing to the holding's share count. Share counts can change outside the
+  // buy/sell forms (inline Shares edits, the Add-a-holding form, deleting a position), so before any
+  // lot is used we heal the difference: extra shares → one adjustment lot at the position's avg cost;
+  // fewer shares → trim oldest-first (FIFO). Returns true if anything changed.
+  function reconcileLots(sym) {
+    sym = symOf(sym);
+    var h = holdings.filter(function (z) { return symOf(z.symbol) === sym; })[0];
+    var target = h ? (Number(h.shares) || 0) : 0;
+    var open = lotsOf(sym);
+    var cur = open.reduce(function (s, l) { return s + Number(l.remaining); }, 0);
+    var changed = false;
+    if (target > cur + LOT_EPS) {
+      var cp = h && h.cost !== "" && h.cost != null && !isNaN(Number(h.cost)) ? lotRound(Number(h.cost)) : "";
+      lots.push({ id: uid(), symbol: sym, date: toISO(new Date()), qty: lotRound(target - cur),
+        remaining: lotRound(target - cur), price: cp, adj: true });
+      changed = true;
+    } else if (target < cur - LOT_EPS) {
+      var excess = cur - target;
+      open.forEach(function (l) {
+        if (excess <= LOT_EPS) return;
+        var take = Math.min(Number(l.remaining), excess);
+        l.remaining = lotRound(Number(l.remaining) - take); excess -= take; changed = true;
+      });
+    }
+    var before = lots.length;
+    lots = lots.filter(function (l) { return !(l.symbol === sym && Number(l.remaining) <= LOT_EPS); });
+    if (lots.length !== before) changed = true;
+    if (changed) persistLots();
+    return changed;
+  }
+  // Plan a sale of `qty` shares. method: "avg" (cost basis = the position's average cost; lots drawn
+  // down oldest-first, the conventional bookkeeping under average cost), "fifo" (oldest lots first,
+  // basis = their weighted price), or "specific" (only the lot ids in `picked`, in that order).
+  // Returns { basis: $/sh or "" if unknown, take: [{id, qty, price, date}], short: shares not covered }.
+  function planSale(sym, qty, method, picked) {
+    sym = symOf(sym);
+    reconcileLots(sym);
+    var open = lotsOf(sym), order = open;
+    if (method === "specific") {
+      var byId = {}; open.forEach(function (l) { byId[l.id] = l; });
+      order = (picked || []).map(function (id) { return byId[id]; }).filter(Boolean);
+    }
+    var need = Number(qty) || 0, take = [];
+    order.forEach(function (l) {
+      if (need <= LOT_EPS) return;
+      var q = Math.min(Number(l.remaining), need);
+      take.push({ id: l.id, qty: lotRound(q), price: l.price, date: l.date || "" });
+      need -= q;
+    });
+    var basis = "";
+    if (method === "avg") {
+      var h = holdings.filter(function (z) { return symOf(z.symbol) === sym; })[0];
+      basis = h && h.cost !== "" && h.cost != null && !isNaN(Number(h.cost)) ? Number(h.cost) : "";
+    } else {
+      var tq = 0, tc = 0, unknown = false;
+      take.forEach(function (t) {
+        if (t.price === "" || t.price == null || isNaN(Number(t.price))) unknown = true;
+        tq += t.qty; tc += t.qty * Number(t.price);
+      });
+      basis = (!unknown && tq > LOT_EPS) ? tc / tq : "";
+    }
+    return { basis: basis, take: take, short: lotRound(Math.max(0, need)) };
+  }
+  // Commit a planned sale: reduce the drawn lots, drop emptied ones.
+  function applySale(take) {
+    take.forEach(function (t) {
+      var l = lots.filter(function (z) { return z.id === t.id; })[0];
+      if (l) l.remaining = lotRound(Math.max(0, Number(l.remaining) - t.qty));
+    });
+    lots = lots.filter(function (l) { return Number(l.remaining) > LOT_EPS; });
+    persistLots();
+  }
+
   // ---------- cash on hand (a single editable number). Total account value = invested + cash ----------
   var CASHKEY = "ledger.cash.v1";
   var cash = loadCash();
@@ -1296,7 +1385,11 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       b.addEventListener("click", function () {
         var id = b.getAttribute("data-pid");
         if (holdings.some(function (z) { return z.id === id; })) {
+          var goneSym = symOf((holdings.filter(function (z) { return z.id === id; })[0] || {}).symbol);
           holdings = holdings.filter(function (z) { return z.id !== id; }); persistH();
+          if (holdings.every(function (z) { return symOf(z.symbol) !== goneSym; })) {   // position gone → its lots too
+            lots = lots.filter(function (l) { return l.symbol !== goneSym; }); persistLots();
+          }
         } else {
           trades = trades.filter(function (z) { return z.id !== id; }); persist();
         }
@@ -1928,9 +2021,14 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     var entry = entryRaw === "" ? "" : parseFloat(entryRaw);
     if (entry === "" || !(entry >= 0)) return;
     var sym = String(h.symbol || "").trim().toUpperCase();
+    // Draw the sold shares from the position's lots (before the holding shrinks). Method is Average
+    // for now, so the buy price above — and the P&L — are exactly as before; Step 3 adds the picker.
+    var plan = planSale(sym, qty, "avg");
+    applySale(plan.take);
     trades.push({ id: uid(), openDate: h.openDate || "", closeDate: closeDate,
       symbol: sym, direction: h.direction || "long", qty: qty, entry: entry, exit: exit, fees: 0,
-      strategy: g("s-strategy").trim() || h.strategy || "", notes: g("s-notes").trim() });
+      strategy: g("s-strategy").trim() || h.strategy || "", notes: g("s-notes").trim(),
+      basisMethod: "avg", lotsUsed: plan.take });
     upsertHolding(sym, -qty);
     persist();
     if (window.nativeTap) window.nativeTap("MEDIUM");   // sell logged — success haptic
@@ -1996,6 +2094,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       holdings.push({ id: uid(), symbol: sym, shares: sh, cost: cost,
         value: valIn != null ? valIn : (cost !== "" ? cost * sh : 0) });
     }
+    addLot(sym, "", sh, cost);   // its own lot at the price entered (undated = an existing position)
     flashSym = sym; persistH(); renderHoldings(); showToast("✓ Added " + sym + " to holdings"); scrollFlashedIntoView(); this.reset();
   });
 
