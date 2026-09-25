@@ -270,6 +270,23 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   .bs-btn:hover { color: var(--ink); }
   .bs-btn.active[data-mode="buy"]  { background: var(--gain); color: #04140b; }
   .bs-btn.active[data-mode="sell"] { background: var(--loss); color: #1a0606; }
+  /* Sell form: cost-basis method (Average · FIFO · Choose lots) + the lot checklist. */
+  .bm-toggle { display: inline-flex; flex-wrap: wrap; gap: 4px; background: var(--surface-2);
+               border: 1px solid var(--border); border-radius: 10px; padding: 4px; align-self: flex-start; }
+  .bm-btn { background: transparent; border: 0; border-radius: 7px; padding: 6px 14px; cursor: pointer;
+            font-size: 12.5px; font-weight: 600; color: var(--ink-soft); }
+  .bm-btn:hover { color: var(--ink); }
+  .bm-btn.active { background: var(--accent); color: #04222a; }
+  .lot-list { margin-top: 8px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .lot-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer;
+             font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12.5px;
+             color: var(--ink); border-top: 1px solid var(--border); text-transform: none; letter-spacing: 0; }
+  .lot-row:first-child { border-top: 0; }
+  .lot-row:hover { background: var(--surface-2); }
+  .lot-row input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; flex: none; }
+  .lot-row .lot-when { margin-left: auto; color: var(--ink-faint); font-family: var(--font-sans); font-size: 11.5px; text-align: right; }
+  .basis-note { margin: 6px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink-soft); }
+  .basis-note.warn { color: var(--loss); }
   /* Custom Position-to-sell dropdown — a native <select> can't recolor its selected-row
      highlight in Safari, so this small listbox highlights the ticker in violet instead. */
   .cdd { position: relative; }
@@ -544,6 +561,15 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
         <div class="field"><label for="s-close">Date sold</label><input type="date" id="s-close" required></div>
         <div class="field"><label for="s-qty">Quantity <span style="text-transform:none;color:var(--ink-faint)">(blank = all)</span></label><input type="number" id="s-qty" step="any" min="0" placeholder="all"></div>
         <div class="field"><label for="s-exit">Exit price</label><input type="number" id="s-exit" step="any" min="0" placeholder="41.10" required></div>
+        <div class="field wide" id="s-basis-field"><label>Cost basis</label>
+          <div class="bm-toggle" id="s-method" role="radiogroup" aria-label="Cost basis method">
+            <button type="button" class="bm-btn active" data-m="avg" role="radio" aria-checked="true">Average</button>
+            <button type="button" class="bm-btn" data-m="fifo" role="radio" aria-checked="false">FIFO</button>
+            <button type="button" class="bm-btn" data-m="specific" role="radio" aria-checked="false">Choose lots</button>
+          </div>
+          <div class="lot-list" id="s-lots" hidden></div>
+          <p class="basis-note" id="s-basis-note"></p>
+        </div>
         <div class="field"><label for="s-entry">Buy price <span style="text-transform:none;color:var(--ink-faint)">($/sh)</span></label><input type="number" id="s-entry" step="any" min="0" placeholder="cost basis" required></div>
         <div class="field wide"><label for="s-strategy">Strategy / setup</label><input type="text" id="s-strategy" placeholder="Momentum breakout"></div>
         <div class="field wide"><label for="s-notes">Notes</label><input type="text" id="s-notes" placeholder="Hit target, trimmed"></div>
@@ -1837,7 +1863,108 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
         ? "Pick a position you already hold — the purchase details fill in automatically."
         : "We don't have a cost basis for this position — enter your buy price so the P&L is right.";
     }
+    sellPicked = []; entryTouched = false;   // a new position starts fresh
+    renderLotPicker(); updateSellBasis();
   }
+
+  // ---------- Sell form: cost-basis method (Step 3) ----------
+  // Average (default — the position's blended cost, same as before) · FIFO (oldest lots first) ·
+  // Choose lots (tick the exact shares you're selling, e.g. today's day-trade block). The Buy price
+  // field auto-fills from the chosen method; typing over it is still allowed (entryTouched).
+  var sellMethod = "avg", sellPicked = [], entryTouched = false;
+  function selHolding() { return holdings.filter(function (z) { return z.id === ddInput.value; })[0]; }
+  function r4(n) { return Math.round(Number(n) * 1e4) / 1e4; }
+  function fmtPx(n) { return "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 }); }   // $13.70, $13.7489
+  // Lots in the order they're shown: newest first, so today's block sits on top.
+  function lotsShown(sym) { return lotsOf(sym).slice().reverse(); }
+  function pickedInOrder(sym) {
+    return lotsShown(sym).filter(function (l) { return sellPicked.indexOf(l.id) >= 0; }).map(function (l) { return l.id; });
+  }
+  // Shares being sold: the typed quantity, else "all" — which for Choose lots means the ticked lots.
+  function sellQty(h) {
+    var raw = document.getElementById("s-qty").value;
+    var avail = Number(h.shares) || 0;
+    if (raw !== "") return Math.min(parseFloat(raw) || 0, avail);
+    if (sellMethod === "specific") {
+      var ids = pickedInOrder(h.symbol);
+      return lotRound(lotsOf(h.symbol).filter(function (l) { return ids.indexOf(l.id) >= 0; })
+        .reduce(function (s, l) { return s + Number(l.remaining); }, 0));
+    }
+    return avail;
+  }
+  function renderLotPicker() {
+    var box = document.getElementById("s-lots"), h = selHolding();
+    if (!h || sellMethod !== "specific") { box.hidden = true; box.innerHTML = ""; return; }
+    reconcileLots(h.symbol);
+    var open = lotsShown(h.symbol);
+    sellPicked = sellPicked.filter(function (id) { return open.some(function (l) { return l.id === id; }); });
+    box.innerHTML = open.length ? open.map(function (l) {
+      var price = (l.price === "" || l.price == null || isNaN(Number(l.price))) ? "no price" : fmtPx(l.price);
+      var when = l.date ? prettyDate(l.date) : "before lot tracking";
+      return '<label class="lot-row"><input type="checkbox" data-lot="' + esc(l.id) + '"' +
+        (sellPicked.indexOf(l.id) >= 0 ? " checked" : "") + '>' +
+        '<span>' + r4(l.remaining) + ' sh @ ' + price + '</span>' +
+        '<span class="lot-when">' + esc(when) + (l.adj ? " · adjustment" : "") + '</span></label>';
+    }).join("") : '<div class="lot-row">No lots recorded for this position.</div>';
+    box.hidden = false;
+    Array.prototype.forEach.call(box.querySelectorAll("[data-lot]"), function (cb) {
+      cb.addEventListener("change", function () {
+        var id = cb.getAttribute("data-lot");
+        sellPicked = sellPicked.filter(function (x) { return x !== id; });
+        if (cb.checked) sellPicked.push(id);
+        entryTouched = false; updateSellBasis();
+      });
+    });
+  }
+  // Recompute the plan, fill the Buy price, and say in plain words what it's based on.
+  // Returns the plan (or null) so the submit handler validates with exactly what's shown.
+  function updateSellBasis() {
+    var note = document.getElementById("s-basis-note"), eEl = document.getElementById("s-entry");
+    var h = selHolding();
+    note.classList.remove("warn");
+    if (!h) { note.textContent = ""; return null; }
+    if (sellMethod === "specific" && !sellPicked.length) {
+      note.textContent = "Tick the lot(s) you're selling."; note.classList.add("warn");
+      if (!entryTouched) eEl.value = "";
+      return null;
+    }
+    var qty = sellQty(h);
+    var plan = planSale(h.symbol, qty, sellMethod, pickedInOrder(h.symbol));
+    plan.qty = qty;
+    if (plan.short > LOT_EPS) {
+      note.textContent = "Those lots cover " + r4(qty - plan.short) + " of the " + r4(qty) +
+        " shares — tick more lots or lower the quantity.";
+      note.classList.add("warn");
+      return plan;
+    }
+    if (!entryTouched) eEl.value = plan.basis === "" ? "" : r4(plan.basis);
+    var parts = plan.take.map(function (t) {
+      return r4(t.qty) + " @ " + ((t.price === "" || t.price == null) ? "no price" : fmtPx(t.price));
+    }).join(" + ");
+    var desc = sellMethod === "avg" ? "Average cost of the whole position."
+      : (sellMethod === "fifo" ? "Oldest shares first: " : "Selling ") + parts + ".";
+    if (plan.basis === "") desc += " No buy price on file — enter it so the P&L is right.";
+    if (entryTouched) desc += " You've typed your own buy price.";
+    note.textContent = desc;
+    return plan;
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("#s-method .bm-btn"), function (b) {
+    b.addEventListener("click", function () {
+      sellMethod = b.getAttribute("data-m");
+      Array.prototype.forEach.call(document.querySelectorAll("#s-method .bm-btn"), function (x) {
+        var on = x === b; x.classList.toggle("active", on); x.setAttribute("aria-checked", on ? "true" : "false");
+      });
+      entryTouched = false; renderLotPicker(); updateSellBasis();
+    });
+  });
+  document.getElementById("s-qty").addEventListener("input", function () { updateSellBasis(); });
+  document.getElementById("s-entry").addEventListener("input", function () { entryTouched = true; updateSellBasis(); });
+  sellForm.addEventListener("reset", function () {
+    sellMethod = "avg";
+    Array.prototype.forEach.call(document.querySelectorAll("#s-method .bm-btn"), function (x) {
+      var on = x.getAttribute("data-m") === "avg"; x.classList.toggle("active", on); x.setAttribute("aria-checked", on ? "true" : "false");
+    });
+  });
   sellForm.addEventListener("reset", function () { setTimeout(populateSellHoldings, 0); });
 
   // ---------- Custom date picker ----------
@@ -2010,25 +2137,24 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     if (!h) return;
     var closeDate = isoOf("s-close"), exit = parseFloat(g("s-exit"));
     if (!closeDate || !(exit >= 0)) return;
-    var avail = Number(h.shares) || 0;
-    var qtyRaw = g("s-qty");
-    var qty = qtyRaw === "" ? avail : parseFloat(qtyRaw);
+    var sym = String(h.symbol || "").trim().toUpperCase();
+    var method = sellMethod;
+    if (method === "specific" && !sellPicked.length) { updateSellBasis(); showToast("Tick the lot(s) you're selling"); return; }
+    var qty = sellQty(h);                                            // capped at shares held
     if (!(qty > 0)) return;
-    if (qty > avail) qty = avail;                                   // never sell more than held
+    // Which shares are being sold, per the chosen method (the same plan the form previewed).
+    var plan = planSale(sym, qty, method, pickedInOrder(sym));
+    if (plan.short > LOT_EPS) { updateSellBasis(); showToast("The ticked lots don't cover " + r4(qty) + " shares"); return; }
     // Buy price: taken from the (auto-filled, editable, required) field so the P&L always
     // has a real cost basis — a blank cost would book the whole sale value as profit.
     var entryRaw = g("s-entry");
     var entry = entryRaw === "" ? "" : parseFloat(entryRaw);
     if (entry === "" || !(entry >= 0)) return;
-    var sym = String(h.symbol || "").trim().toUpperCase();
-    // Draw the sold shares from the position's lots (before the holding shrinks). Method is Average
-    // for now, so the buy price above — and the P&L — are exactly as before; Step 3 adds the picker.
-    var plan = planSale(sym, qty, "avg");
-    applySale(plan.take);
+    applySale(plan.take);                                            // draw the lots down (before the holding shrinks)
     trades.push({ id: uid(), openDate: h.openDate || "", closeDate: closeDate,
       symbol: sym, direction: h.direction || "long", qty: qty, entry: entry, exit: exit, fees: 0,
       strategy: g("s-strategy").trim() || h.strategy || "", notes: g("s-notes").trim(),
-      basisMethod: "avg", lotsUsed: plan.take });
+      basisMethod: method, lotsUsed: plan.take });
     upsertHolding(sym, -qty);
     persist();
     if (window.nativeTap) window.nativeTap("MEDIUM");   // sell logged — success haptic
