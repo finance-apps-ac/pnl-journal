@@ -1,3 +1,5 @@
+<img src="icon-512.png" width="96" alt="">
+
 # P&L — Trading Journal
 
 A clean, private trading journal. Log trades and realized P&L, track holdings and
