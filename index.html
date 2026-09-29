@@ -714,7 +714,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     <button type="button" class="show-all-btn" id="wShowAll" hidden></button>
   </section>
 
-  <footer class="foot">Private to you — trades are saved in this browser only, never uploaded.</footer>
+  <footer class="foot">Private to you — your trades sync only to your own account. Never sold or shared.</footer>
   <div class="foot" style="margin-top:10px;">Also from the same maker — <a href="https://apps.apple.com/app/budget-annual-tracker/id6809091266" onclick="event.preventDefault();try{window.open(this.href,window.Capacitor?'_system':'_blank');}catch(e){location.href=this.href;}" style="color:var(--accent);text-decoration:none;white-space:nowrap;">Budget: plan your whole year →</a></div>
 
   <!-- ===== P&L Pro paywall — shown by native.js on iOS when there's no active subscription.
@@ -1092,6 +1092,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       pnl = gross - (Number(t.fees) || 0);
       pnlPct = basis ? (pnl / basis) * 100 : 0;
       days = Math.max(0, Math.round((new Date(t.closeDate) - new Date(t.openDate)) / 86400000));
+      if (isNaN(days)) days = null;   // no/invalid buy date → unknown hold time (was "NaNd")
     }
     return { open: open, pnl: pnl, pnlPct: pnlPct, days: days };
   }
@@ -1113,7 +1114,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   // so empty cells stay clean). Used for every editable dollar amount — holdings Value/Cost, trade Value.
   function moneyCell(attr, id, raw) {
     var has = !(raw === "" || raw == null);
-    var str = has ? String(raw) : "";
+    var num = Number(raw), str = has ? (isNaN(num) ? String(raw) : (Number.isInteger(num) ? String(num) : num.toFixed(2))) : "";
     // Size the input to its content so the $ hugs the number identically per row (pill clips any overflow).
     var chLen = Math.min(Math.max(str.length, 1), 10);
     var wStyle = has ? ' style="width:calc(' + chLen + 'ch + 3px)"' : '';
@@ -1308,10 +1309,11 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       if (addBtn) addBtn.addEventListener("click", function () {
         var d = document.getElementById("wDate").dataset.iso || "";
         var a = parseFloat(document.getElementById("wAmt").value);
-        if (!d || !(a > 0)) return;
+        if (!d) { showToast("Pick a date for the withdrawal"); return; }
+        if (!(a > 0)) { showToast("Enter an amount above $0"); return; }
         withdraw.push({ id: "w" + Date.now(), date: d, amount: a });
         cash -= a; persistCash(); updateAccountSummary();   // withdrawal takes cash out
-        setDateField(document.getElementById("wDate"), "");
+        setDateField(document.getElementById("wDate"), toISO(new Date()));
         document.getElementById("wAmt").value = "";
         persistW(); renderWithdrawals(); renderContrib();   // donut/total reflect the change
       });
@@ -1436,8 +1438,10 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     var n = rows.length;
     var winRate = n ? (wins / n * 100) : 0;
     var pf = grossLoss !== 0 ? (grossWin / Math.abs(grossLoss)) : (grossWin > 0 ? Infinity : 0);
-    var incompleteN = trades.filter(function (t) { return compute(t).incomplete; }).length;
-    var openN = trades.length - n - incompleteN;
+    var yrSel = selectedYear(), inYr = function (t) { var d = t.closeDate || t.openDate || ""; return yrSel === "all" || d.slice(0, 4) === yrSel; };
+    var yrTrades = trades.filter(inYr);
+    var incompleteN = yrTrades.filter(function (t) { return compute(t).incomplete; }).length;
+    var openN = yrTrades.filter(function (t) { return compute(t).open; }).length;
     var tiles = [
       { label: "Net realized P&L", value: signed(net), cls: cls(net), sub: n + " closed" + (openN ? " · " + openN + " open" : "") + (incompleteN ? " · " + incompleteN + " needs cost" : "") },
       { label: "Win rate", value: n ? winRate.toFixed(0) + "%" : "—", sub: wins + "W / " + (n - wins) + "L" },
@@ -1985,6 +1989,11 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     el.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
+  // Date fields start on today (still editable) – a blank date was the most common silent failure.
+  var TODAY_FIELDS = ["b-open", "s-close", "wDate"];
+  function fillToday(ids) { ids.forEach(function (id) { var el = document.getElementById(id); if (el && !el.dataset.iso) setDateField(el, toISO(new Date())); }); }
+  setTimeout(function () { fillToday(TODAY_FIELDS); }, 0);
+
   var calPop = null, calInput = null, calView = null;
   function buildCalPop() {
     calPop = document.createElement("div");
@@ -2071,7 +2080,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     el.addEventListener("focus", open);
     el.addEventListener("click", open);
     el.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openCal(el); } });
-    if (el.form) el.form.addEventListener("reset", function () { setTimeout(function () { setDateField(el, ""); }, 0); });
+    if (el.form) el.form.addEventListener("reset", function () { setTimeout(function () { setDateField(el, TODAY_FIELDS.indexOf(el.id) >= 0 ? toISO(new Date()) : ""); }, 0); });
   }
   attachCal("b-open", "Select date");
   attachCal("s-close", "Select date");
@@ -2106,7 +2115,11 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     var g = function (id) { return document.getElementById(id).value; };
     var openDate = isoOf("b-open"), sym = g("b-symbol").trim().toUpperCase();
     var qty = parseFloat(g("b-qty")), entry = parseFloat(g("b-entry"));
-    if (!openDate || !sym || !(qty > 0) || !(entry >= 0)) return;
+    if (!openDate) { showToast("Pick the buy date"); return; }
+    if (!sym) { showToast("Enter a symbol"); return; }
+    if (!(qty > 0)) { showToast("Enter a quantity above 0"); return; }
+    if (!(entry >= 0)) { showToast("Enter the buy price"); return; }
+    if (openDate > toISO(new Date())) { showToast("That buy date is in the future — pick today or earlier"); return; }
     var dir = g("b-dir"), strategy = g("b-strategy").trim(), notes = g("b-notes").trim();
     upsertHolding(sym, qty, entry, [strategy, notes].filter(Boolean).join(" · "));
     addLot(sym, openDate, qty, entry);   // record this buy as its own lot (for FIFO / specify-the-lot)
@@ -2136,10 +2149,14 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     var h = holdings.filter(function (z) { return z.id === g("s-holding"); })[0];
     if (!h) return;
     var closeDate = isoOf("s-close"), exit = parseFloat(g("s-exit"));
-    if (!closeDate || !(exit >= 0)) return;
+    if (!closeDate) { showToast("Pick the sell date"); return; }
+    if (!(exit >= 0)) { showToast("Enter the sell price"); return; }
+    if (closeDate > toISO(new Date())) { showToast("That sell date is in the future — pick today or earlier"); return; }
     var sym = String(h.symbol || "").trim().toUpperCase();
     var method = sellMethod;
     if (method === "specific" && !sellPicked.length) { updateSellBasis(); showToast("Tick the lot(s) you're selling"); return; }
+    var rawQty = parseFloat(g("s-qty")), held = Number(h.shares) || 0;
+    if (rawQty > held + LOT_EPS) { showToast("You hold only " + r4(held) + " " + sym + " — enter " + r4(held) + " or fewer"); return; }
     var qty = sellQty(h);                                            // capped at shares held
     if (!(qty > 0)) return;
     // Which shares are being sold, per the chosen method (the same plan the form previewed).
@@ -2283,8 +2300,8 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       var msg = (silent ? "Auto-updated · " : (updated + (updated === 1 ? " position" : " positions") + " updated · ")) + now;
       if (missing.length && !silent) msg += " · no price for " + missing.filter(function (v, i, a) { return a.indexOf(v) === i; }).join(", ");
       setPriceNote(msg);
-    }).catch(function () {
-      if (!silent) setPriceNote("Couldn't fetch prices — try again in a moment.");
+    }).catch(function (err) {
+      if (!silent) setPriceNote(err && /not signed in/.test(err.message || "") ? "Live prices need an account — sign in to turn them on." : "Couldn't fetch prices — try again in a moment.");
     }).then(function () {
       if (!silent && btn) { btn.disabled = false; btn.textContent = "↻ Live prices"; }
     });
