@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Delete Your Account – Tradeology</title>
+<style>
+  :root{
+    --bg:#080D1A; --surface:#0F1728; --border:#26324E; --ink:#EAF2FB; --ink-soft:#94A4BF;
+    --accent:#2FD3E1; --maxw:760px;
+    --font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#F4F6FB; --surface:#FFFFFF; --border:#DCE3EE; --ink:#0F1A2E; --ink-soft:#54627C; --accent:#0AA3B2; }
+  }
+  *,*::before,*::after{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.65;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:clamp(28px,6vw,64px) clamp(18px,5vw,32px) 80px;}
+  .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:700;}
+  h1{font-size:clamp(26px,5vw,36px);font-weight:800;letter-spacing:-.02em;margin:10px 0 4px;}
+  .updated{color:var(--ink-soft);font-size:14px;margin:0 0 8px;}
+  .intro{color:var(--ink-soft);font-size:15.5px;margin:18px 0 8px;}
+  h2{font-size:18px;font-weight:700;margin:34px 0 8px;padding-top:20px;border-top:1px solid var(--border);}
+  h2:first-of-type{border-top:0;}
+  p,li{font-size:15px;color:var(--ink);}
+  p{margin:10px 0;}
+  ul,ol{margin:10px 0;padding-left:22px;}
+  li{margin:7px 0;}
+  a{color:var(--accent);}
+  strong{font-weight:650;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin:16px 0;}
+  ol.steps li{margin:12px 0;}
+  footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);color:var(--ink-soft);font-size:13.5px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Account &amp; Data Deletion</div>
+  <h1>Delete Your Tradeology Account</h1>
+  <p class="updated">Last updated: October 4, 2026</p>
+  <p class="intro">This page explains how to delete your account and its data for <strong>Tradeology: Learn to Trade</strong>, provided by Anna Cardoso. An account is optional – Tradeology works without one – and you can delete it at any time.</p>
+
+  <h2>Delete directly in the app (fastest)</h2>
+  <ol class="steps">
+    <li>Open Tradeology and tap the <strong>profile icon</strong> (top right of the home screen) to open Settings.</li>
+    <li>Under <strong>Account</strong>, tap <strong>Delete account…</strong></li>
+    <li>Tap <strong>Delete forever</strong> to confirm. Your account and its data are deleted <strong>immediately and permanently</strong>.</li>
+  </ol>
+  <div class="card">Your Tradeology account is a FinanceLog account – the same sign-in used by our P&amp;L Trading Journal and Budget apps. Deleting it removes the account and <strong>all</strong> data on it, including any P&amp;L or Budget data on the same email.</div>
+
+  <h2>Or request deletion by email</h2>
+  <p>If you can’t access the app, email <a href="mailto:support@financelog.app">support@financelog.app</a> from the email address on your account with the subject line <strong>“Delete my account.”</strong> We will verify the request, delete your account and data within <strong>30 days</strong>, and confirm by email when it’s done.</p>
+
+  <h2>What is deleted</h2>
+  <ul>
+    <li>Your account credentials (email address and password hash) and your account ID.</li>
+    <li>Your profile photo, if you added one.</li>
+    <li>Your synced learning progress – completed lessons, quiz results, XP and day streak.</li>
+    <li>Any settings linked to your account.</li>
+  </ul>
+  <p>Progress saved only on your device stays there until you clear the app’s data or uninstall it.</p>
+
+  <h2>What is kept, and for how long</h2>
+  <p>We keep <strong>no</strong> copy of your account data after deletion. Removal from our live database (Supabase) is immediate; residual copies in encrypted backups are purged on our provider’s rolling backup cycle within <strong>30 days</strong>. Subscription purchase records are held by Apple or Google under their own policies, not by us. We never sell your data or share it for advertising.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about deleting your account or your data? Email <a href="mailto:support@financelog.app">support@financelog.app</a>. See also our <a href="privacy.html">Privacy Policy</a>.</p>
+
+  <footer>© 2026 Anna Cardoso. All rights reserved.</footer>
+</div>
+</body>
+</html>
