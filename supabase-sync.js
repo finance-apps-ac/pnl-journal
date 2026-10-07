@@ -59,16 +59,25 @@
   var currentToken = null;    // cached access token, so the keepalive beacon can fire synchronously
 
   /* ---- 1. Install the localStorage hook SYNCHRONOUSLY (before the app runs) ---- */
-  var origSet = window.localStorage.setItem.bind(window.localStorage);
-  var origRemove = window.localStorage.removeItem.bind(window.localStorage);
-  window.localStorage.setItem = function (k, v) {
-    origSet(k, v);
-    if (!applyingRemote && KEYS.indexOf(k) >= 0) onLocalEdit(k);
+  // Hook on Storage.prototype, NOT on the localStorage object: in Safari/WebKit (iPhone browser AND the
+  // iOS app) `localStorage.setItem = fn` does not override anything — it just stores an item called
+  // "setItem" — so edits were never detected and the phone never pushed them; a later save from another
+  // device then made the cloud look newer and the phone's unsent edit was overwritten (lost trade, 2026-10-06).
+  var STORE = window.localStorage, SP = Storage.prototype;
+  var protoSet = SP.setItem, protoRemove = SP.removeItem;
+  var origSet = function (k, v) { protoSet.call(STORE, k, v); };
+  var origRemove = function (k) { protoRemove.call(STORE, k); };
+  SP.setItem = function (k, v) {
+    protoSet.call(this, k, v);
+    if (this === STORE && !applyingRemote && KEYS.indexOf(k) >= 0) onLocalEdit(k);
   };
-  window.localStorage.removeItem = function (k) {
-    origRemove(k);
-    if (!applyingRemote && KEYS.indexOf(k) >= 0) onLocalEdit(k);
+  SP.removeItem = function (k) {
+    protoRemove.call(this, k);
+    if (this === STORE && !applyingRemote && KEYS.indexOf(k) >= 0) onLocalEdit(k);
   };
+  // the broken hook left two junk items ("setItem", "removeItem") in Safari's storage — tidy them up
+  try { ["setItem", "removeItem"].forEach(function (k) { if (protoGetJunk(k)) protoRemove.call(STORE, k); }); } catch (e) {}
+  function protoGetJunk(k) { var v = Storage.prototype.getItem.call(STORE, k); return v !== null && /^function/.test(String(v)); }
   // A genuine user edit (only counts once the app is live — boot-time seeding is ignored,
   // otherwise a freshly-loaded empty device would look "dirty" and overwrite the cloud).
   function onLocalEdit(k) {
