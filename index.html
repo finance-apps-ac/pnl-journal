@@ -54,7 +54,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
      Derived from the 2026 budget tracker: deep navy ground, electric cyan
      structure, mint-green for money/positive, violet for secondary, coral for loss. */
   :root {
-    --pc-on: #FFFFFF; --pc-on-loss: #FFFFFF; --pc-a: 62%; --pc-sh: 0 1px 2px rgba(0,0,0,.35), 0 0 1px rgba(0,0,0,.25);   /* calendar day: text, colour strength, text shadow */
+    --pc-on: #0B1220; --pc-on-loss: #0B1220; --pc-a: 62%; --pc-sh: none; --pc-lo: 55%; --pc-rg: 41%;   /* calendar day: text, colour strength, text shadow */
     --bg: #080D1A;
     --surface: #0F1728;
     --surface-2: #172139;
@@ -81,7 +81,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
 
   /* ---------- Light theme (auto = follows system; toggle = manual override) ---------- */
   :root[data-theme="light"] {
-    --pc-on: #0B1220; --pc-on-loss: #0B1220; --pc-a: 58%; --pc-sh: none;
+    --pc-on: #0B1220; --pc-on-loss: #0B1220; --pc-a: 58%; --pc-sh: none; --pc-lo: 26%; --pc-rg: 59%;
     color-scheme: light;
     --bg:#F4F6FB; --surface:#FFFFFF; --surface-2:#EDF1F8; --border:#DCE3EE;
     --ink:#0F1A2E; --ink-soft:#54627C; --ink-faint:#8492AC;
@@ -94,7 +94,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme]) {
-      --pc-on: #0B1220; --pc-on-loss: #0B1220; --pc-a: 58%; --pc-sh: none;
+      --pc-on: #0B1220; --pc-on-loss: #0B1220; --pc-a: 58%; --pc-sh: none; --pc-lo: 26%; --pc-rg: 59%;
       color-scheme: light;
       --bg:#F4F6FB; --surface:#FFFFFF; --surface-2:#EDF1F8; --border:#DCE3EE;
       --ink:#0F1A2E; --ink-soft:#54627C; --ink-faint:#8492AC;
@@ -107,7 +107,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     }
   }
   :root[data-theme="dark"] {
-    --pc-on: #FFFFFF; --pc-on-loss: #FFFFFF; --pc-a: 62%; --pc-sh: 0 1px 2px rgba(0,0,0,.35), 0 0 1px rgba(0,0,0,.25);
+    --pc-on: #0B1220; --pc-on-loss: #0B1220; --pc-a: 62%; --pc-sh: none; --pc-lo: 55%; --pc-rg: 41%;
     color-scheme: dark;
     --bg:#080D1A; --surface:#0F1728; --surface-2:#172139; --border:#26324E;
     --ink:#EAF2FB; --ink-soft:#94A4BF; --ink-faint:#647294;
@@ -232,6 +232,11 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   .pc-c .t { font-size: 9.5px; font-weight: 600; opacity: .55; white-space: nowrap; }
   .pc-c.up { border: 1px solid var(--gain); color: var(--pc-on); } .pc-c.dn { border: 1px solid var(--loss); color: var(--pc-on-loss); }
   .pc-c.up .d, .pc-c.dn .d { color: inherit; opacity: .5; }
+  /* Day colour strength: --f (0–1, set per day from its size) scales between the theme's --pc-lo and --pc-lo + --pc-rg;
+     the tapped day gets a little more of its own colour. */
+  .pc-c.up { background: color-mix(in srgb, var(--gain) min(100%, calc(var(--pc-lo) + var(--f, 0) * var(--pc-rg) + var(--pc-boost, 0%))), transparent); }
+  .pc-c.dn { background: color-mix(in srgb, var(--loss) min(100%, calc(var(--pc-lo) + var(--f, 0) * var(--pc-rg) + var(--pc-boost, 0%))), transparent); }
+  .pc-c.sel { --pc-boost: 22%; }
   .pc-c.up, .pc-c.dn { text-shadow: var(--pc-sh); } .pc-c.up .d, .pc-c.dn .d { opacity: .5; }
  
   .pc-c.has { cursor: pointer; }
@@ -1692,9 +1697,8 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
         rowHas = true;
         if (o) {
           wk += o.pnl; wkN += o.n;
-          var fill = Math.round(26 + 59 * Math.min(1, Math.abs(o.pnl) / maxA));    // 26%–85% of the day colour
-          if (calSel === key) fill = Math.min(100, fill + 22);                       // the tapped day: a little more of its own colour
-          cell = '<button type="button" class="pc-c has ' + (o.pnl >= 0 ? "up" : "dn") + (isToday ? " today" : "") + (calSel === key ? " sel" : "") + '" data-day="' + key + '" style="background:color-mix(in srgb, var(' + (o.pnl >= 0 ? "--gain" : "--loss") + ') ' + fill + '%, transparent)" aria-label="' + key + ': ' + signed(o.pnl) + ', ' + o.n + ' trade' + (o.n > 1 ? "s" : "") + '">' +
+          var fill = Math.min(1, Math.abs(o.pnl) / maxA).toFixed(3);              // 0–1 → colour strength (CSS, per theme)
+          cell = '<button type="button" class="pc-c has ' + (o.pnl >= 0 ? "up" : "dn") + (isToday ? " today" : "") + (calSel === key ? " sel" : "") + '" data-day="' + key + '" style="--f:' + fill + '" aria-label="' + key + ': ' + signed(o.pnl) + ', ' + o.n + ' trade' + (o.n > 1 ? "s" : "") + '">' +
             '<span class="d">' + dn + '</span><span class="v">' + calShort(o.pnl) + '</span><span class="t">' + o.n + (o.n > 1 ? " trades" : " trade") + '</span></button>';
         } else cell = '<div class="pc-c' + (isToday ? " today" : "") + '"><span class="d">' + dn + '</span></div>';
       }
