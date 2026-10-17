@@ -42,7 +42,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
 <!-- Cross-device sync: login + cloud storage. Must load before the app script. -->
 <script>window.SYNC_CONFIG = { app: "pnl", name: "P&L", keys: ["ledger.trades.v1", "ledger.holdings.v1", "ledger.contrib.v1", "ledger.withdraw.v1", "ledger.years.v1", "ledger.cash.v1", "ledger.lots.v1"] };</script>
 <script>window.DEMO_SEED = {"ledger.trades.v1": [{"id": "m1", "openDate": "2025-01-08", "closeDate": "2025-01-08", "symbol": "NVDA", "direction": "long", "qty": 20, "entry": "", "exit": "", "fees": 0, "manualPnl": 420, "saleValue": 10240, "notes": "Momentum breakout"}, {"id": "m2", "openDate": "2025-01-22", "closeDate": "2025-01-22", "symbol": "AAPL", "direction": "long", "qty": 50, "entry": "", "exit": "", "fees": 0, "manualPnl": 180, "saleValue": 9800, "notes": "Trend day"}, {"id": "m3", "openDate": "2025-02-05", "closeDate": "2025-02-05", "symbol": "AMD", "direction": "long", "qty": 40, "entry": "", "exit": "", "fees": 0, "manualPnl": 260, "saleValue": 7120, "notes": "Gap fill"}, {"id": "m4", "openDate": "2025-02-19", "closeDate": "2025-02-19", "symbol": "TSLA", "direction": "long", "qty": 10, "entry": "", "exit": "", "fees": 0, "manualPnl": -150, "saleValue": 2050, "notes": "Stopped out"}, {"id": "m5", "openDate": "2025-03-06", "closeDate": "2025-03-06", "symbol": "META", "direction": "long", "qty": 12, "entry": "", "exit": "", "fees": 0, "manualPnl": 540, "saleValue": 6140, "notes": "Earnings run"}, {"id": "m6", "openDate": "2025-03-20", "closeDate": "2025-03-20", "symbol": "MSFT", "direction": "long", "qty": 25, "entry": "", "exit": "", "fees": 0, "manualPnl": 90, "saleValue": 10050, "notes": "Quick scalp"}, {"id": "m7", "openDate": "2025-04-09", "closeDate": "2025-04-09", "symbol": "AMZN", "direction": "long", "qty": 30, "entry": "", "exit": "", "fees": 0, "manualPnl": 330, "saleValue": 5670, "notes": "Breakout retest"}, {"id": "m8", "openDate": "2025-04-23", "closeDate": "2025-04-23", "symbol": "GOOGL", "direction": "long", "qty": 22, "entry": "", "exit": "", "fees": 0, "manualPnl": 210, "saleValue": 3870, "notes": "Range play"}, {"id": "m9", "openDate": "2025-05-07", "closeDate": "2025-05-07", "symbol": "PLTR", "direction": "long", "qty": 300, "entry": "", "exit": "", "fees": 0, "manualPnl": 680, "saleValue": 7350, "notes": "Breakout hold \u2014 trimmed half"}, {"id": "m10", "openDate": "2025-05-21", "closeDate": "2025-05-21", "symbol": "COIN", "direction": "long", "qty": 40, "entry": "", "exit": "", "fees": 0, "manualPnl": 1240, "saleValue": 9860, "notes": "News pop, scaled out"}, {"id": "m11", "openDate": "2025-06-04", "closeDate": "2025-06-04", "symbol": "SHOP", "direction": "long", "qty": 25, "entry": "", "exit": "", "fees": 0, "manualPnl": 310, "saleValue": 2680, "notes": "Bounce off support"}, {"id": "m12", "openDate": "2025-06-18", "closeDate": "2025-06-18", "symbol": "NFLX", "direction": "long", "qty": 10, "entry": "", "exit": "", "fees": 0, "manualPnl": -90, "saleValue": 6100, "notes": "Cut it early"}, {"id": "m13", "openDate": "2025-07-09", "closeDate": "2025-07-09", "symbol": "NVDA", "direction": "long", "qty": 25, "entry": "", "exit": "", "fees": 0, "manualPnl": 1450, "saleValue": 13100, "notes": "Earnings run-up, sold strength"}, {"id": "m14", "openDate": "2025-07-23", "closeDate": "2025-07-23", "symbol": "AMD", "direction": "long", "qty": 30, "entry": "", "exit": "", "fees": 0, "manualPnl": 260, "saleValue": 5340, "notes": "Sector rotation"}, {"id": "m15", "openDate": "2025-08-06", "closeDate": "2025-08-06", "symbol": "AAPL", "direction": "long", "qty": 15, "entry": "", "exit": "", "fees": 0, "manualPnl": 130, "saleValue": 2940, "notes": "Quick scalp"}, {"id": "m16", "openDate": "2025-08-20", "closeDate": "2025-08-20", "symbol": "MSFT", "direction": "long", "qty": 15, "entry": "", "exit": "", "fees": 0, "manualPnl": 320, "saleValue": 6300, "notes": "Trend continuation"}, {"id": "m17", "openDate": "2025-09-10", "closeDate": "2025-09-10", "symbol": "TSLA", "direction": "long", "qty": 12, "entry": "", "exit": "", "fees": 0, "manualPnl": 540, "saleValue": 2760, "notes": "Momentum"}, {"id": "m18", "openDate": "2025-09-24", "closeDate": "2025-09-24", "symbol": "META", "direction": "long", "qty": 8, "entry": "", "exit": "", "fees": 0, "manualPnl": 180, "saleValue": 4100, "notes": "Fade the gap"}, {"id": "m19", "openDate": "2025-10-08", "closeDate": "2025-10-08", "symbol": "AMZN", "direction": "long", "qty": 30, "entry": "", "exit": "", "fees": 0, "manualPnl": 410, "saleValue": 5820, "notes": "Breakout"}, {"id": "m20", "openDate": "2025-10-22", "closeDate": "2025-10-22", "symbol": "NVDA", "direction": "long", "qty": 12, "entry": "", "exit": "", "fees": 0, "manualPnl": 760, "saleValue": 6300, "notes": "Held the trend"}, {"id": "m21", "openDate": "2025-11-06", "closeDate": "2025-11-06", "symbol": "GOOGL", "direction": "long", "qty": 22, "entry": "", "exit": "", "fees": 0, "manualPnl": 240, "saleValue": 3960, "notes": "Range play"}, {"id": "m22", "openDate": "2025-11-20", "closeDate": "2025-11-20", "symbol": "PLTR", "direction": "long", "qty": 200, "entry": "", "exit": "", "fees": 0, "manualPnl": 520, "saleValue": 5200, "notes": "Swing hold"}, {"id": "m23", "openDate": "2025-12-09", "closeDate": "2025-12-09", "symbol": "COIN", "direction": "long", "qty": 25, "entry": "", "exit": "", "fees": 0, "manualPnl": 890, "saleValue": 6400, "notes": "Momentum, scaled out"}, {"id": "m24", "openDate": "2025-12-19", "closeDate": "2025-12-19", "symbol": "AMD", "direction": "long", "qty": 20, "entry": "", "exit": "", "fees": 0, "manualPnl": 150, "saleValue": 3560, "notes": "Quick trim"}], "ledger.holdings.v1": [{"id": "h1", "symbol": "NVDA", "shares": 30, "cost": 500, "value": 15600, "note": "Core position \u2014 riding the trend"}, {"id": "h2", "symbol": "AAPL", "shares": 60, "cost": 188, "value": 11700, "note": ""}, {"id": "h3", "symbol": "AMD", "shares": 45, "cost": 170, "value": 8100, "note": ""}, {"id": "h4", "symbol": "MSFT", "shares": 20, "cost": 405, "value": 8300, "note": ""}, {"id": "h5", "symbol": "PLTR", "shares": 200, "cost": 24, "value": 5200, "note": "Long-term hold"}], "ledger.contrib.v1": {"2025-01": 200, "2025-02": 350, "2025-03": 250, "2025-04": 500, "2025-05": 300, "2025-06": 400, "2025-07": 1500, "2025-08": 350, "2025-09": 450, "2025-10": 300, "2025-11": 250, "2025-12": 600}, "ledger.years.v1": []};</script>
-<script src="supabase-sync.js?v=30"></script>
+<script src="supabase-sync.js?v=31"></script>
 <script src="native.js?v=2"></script>
 <style>
   /* ---------- reset (self-sufficient when opened as a local file) ---------- */
@@ -118,7 +118,16 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     --blue:#4AA3FF;
     --shadow:0 1px 2px rgba(0,0,0,.35), 0 14px 34px rgba(0,0,0,.42);
   }
-  .theme-btn { min-width: 38px; justify-content: center; font-size: 15px; line-height: 1; }
+  /* Account button (top right) – opens Settings: account, appearance (dark / light / auto), session.
+     The small dot is the sync status: green = saved to the cloud, amber = edits still pending. */
+  .acct { flex: none; position: relative; width: 38px; height: 38px; border-radius: 50%; padding: 0; cursor: pointer;
+          border: 1px solid var(--border); background: var(--surface); color: var(--ink-soft);
+          display: grid; place-items: center; transition: border-color .15s, color .15s; }
+  .acct svg { width: 18px; height: 18px; }
+  .acct:hover { border-color: var(--accent); }
+  .acct.in { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+  #acctBtn .acct-dot { position: absolute; top: 0; right: 0; width: 9px; height: 9px; border-radius: 50%;
+          background: var(--gain); box-shadow: 0 0 0 2px var(--bg); }
 
   body { background: var(--bg); color: var(--ink); font-family: var(--font-ui);
          line-height: 1.5; -webkit-font-smoothing: antialiased;
@@ -505,6 +514,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     .tagline { font-size: 10px; letter-spacing: .2px; }
     .topbar-actions { gap: 7px; }
     .topbar-actions .btn, .topbar-actions select { padding: 7px 10px; font-size: 12.5px; min-height: 36px; }
+    .acct { width: 36px; height: 36px; }
   }
 </style>
 
@@ -518,10 +528,10 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       </div>
     </div>
     <div class="topbar-actions">
-      <button id="themeBtn" class="btn theme-btn" type="button" onclick="__toggleTheme()" title="Light / dark" aria-label="Toggle light or dark theme">🌙</button>
       <select id="yearFilter" aria-label="Filter by year"></select>
       <input type="number" id="newYear" class="year-input" placeholder="2027" hidden aria-label="New year">
       <button class="btn" id="addYearBtn" title="Add a year">＋ Year</button>
+      <button class="acct" id="acctBtn" type="button" onclick="window.__openSettings && __openSettings()" aria-label="Account and settings" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.6"/><path d="M4.8 19.6c1.4-3.3 4-4.9 7.2-4.9s5.8 1.6 7.2 4.9"/></svg></button>
     </div>
   </header>
 

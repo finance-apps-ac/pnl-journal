@@ -600,7 +600,14 @@
     var ok = document.getElementById("set-email-ok"); if (ok) ok.style.display = "none";
     var er = document.getElementById("set-email-err"); if (er) er.textContent = "";
     highlightTheme(themeMode());
+    // Guest demo has no account: show only "Exit demo" + Appearance.
+    var demo = !currentUser && isDemo();
+    ["set-acct-sec", "set-sess-sec"].forEach(function (id) { var x = document.getElementById(id); if (x) x.style.display = demo ? "none" : ""; });
+    var ds = document.getElementById("set-demo-sec"); if (ds) ds.style.display = demo ? "" : "none";
+    var ap = document.getElementById("set-app-sec"); if (ap) ap.style.borderBottom = demo ? "0" : "";
   }
+  // The round account button in the top bar (index.html) opens Settings.
+  window.__openSettings = openSettings;
   function openSettings() {
     var d = document.getElementById("set-scrim");
     if (d) { d.style.display = "grid"; refreshSettings(); return; }
@@ -610,17 +617,21 @@
       '<div id="set-modal" role="dialog" aria-modal="true" aria-label="Settings">' +
         '<div class="set-head"><h2>Settings</h2><button class="set-x" id="set-close" aria-label="Close">✕</button></div>' +
         '<div class="set-body">' +
-          '<div class="set-sec"><div class="set-lbl">Account</div>' +
+          '<div class="set-sec" id="set-demo-sec"><div class="set-lbl">Demo mode</div>' +
+            '<div class="set-who">You\u2019re exploring sample trades. Nothing here is saved to an account.</div>' +
+            '<div class="set-row"><button class="set-btn primary" id="set-exitdemo">Exit demo &amp; sign in</button></div>' +
+          '</div>' +
+          '<div class="set-sec" id="set-acct-sec"><div class="set-lbl">Account</div>' +
             '<div class="set-who">Signed in as <b id="set-who-email"></b></div>' +
             '<div class="set-row"><input id="set-email" type="email" autocomplete="email" spellcheck="false"><button class="set-btn primary" id="set-email-save">Save</button></div>' +
             '<div class="set-hint">Changing your email sends a confirmation link to <b>both</b> your old and new address — the change applies once you confirm.</div>' +
             '<div class="set-err" id="set-email-err"></div>' +
             '<div class="set-ok" id="set-email-ok">✓ Confirmation links sent. Check both inboxes to finish.</div>' +
           '</div>' +
-          '<div class="set-sec"><div class="set-lbl">Appearance</div>' +
-            '<div class="set-seg" id="set-seg"><button data-t="system">System</button><button data-t="light">Light</button><button data-t="dark">Dark</button></div>' +
+          '<div class="set-sec" id="set-app-sec"><div class="set-lbl">Appearance</div>' +
+            '<div class="set-seg" id="set-seg"><button data-t="dark">Dark</button><button data-t="light">Light</button><button data-t="system">Auto</button></div>' +
           '</div>' +
-          '<div class="set-sec"><div class="set-lbl">Session</div><div class="set-stack">' +
+          '<div class="set-sec" id="set-sess-sec"><div class="set-lbl">Session</div><div class="set-stack">' +
             '<button class="set-btn ghost" id="set-logout">Log out</button>' +
             '<button class="set-btn danger" id="set-del">Delete account…</button>' +
             '<div class="set-danger" id="set-danger"><p>This permanently deletes your account and all your data on every device. This can’t be undone.</p><div class="set-cf"><button class="set-btn ghost" id="set-del-cancel">Cancel</button><button class="set-btn danger solid" id="set-del-go">Delete forever</button></div></div>' +
@@ -635,6 +646,7 @@
     document.getElementById("set-del").onclick = function () { var x = document.getElementById("set-danger"); if (x) x.style.display = "block"; };
     document.getElementById("set-del-cancel").onclick = function () { var x = document.getElementById("set-danger"); if (x) x.style.display = "none"; };
     document.getElementById("set-del-go").onclick = deleteAccount;
+    document.getElementById("set-exitdemo").onclick = exitDemo;
     var seg = document.getElementById("set-seg");
     Array.prototype.forEach.call(seg.querySelectorAll("button"), function (btn) {
       btn.onclick = function () { applyTheme(btn.getAttribute("data-t")); };
@@ -966,6 +978,17 @@
   }
 
   function showBadge(email) {
+    var acct = document.getElementById("acctBtn");
+    if (acct) {
+      acct.classList.add("in");
+      acct.setAttribute("aria-label", "Account and settings \u2013 signed in as " + email);
+      acct.title = email;
+      if (!document.getElementById("sync-dot")) {
+        var dot = document.createElement("span"); dot.id = "sync-dot"; dot.className = "acct-dot"; acct.appendChild(dot);
+      }
+      updatePendingBadge();
+      return;
+    }
     if (document.getElementById("sync-badge")) return;
     var b = document.createElement("div");
     b.id = "sync-badge";
@@ -988,10 +1011,17 @@
   // Driven by the DURABLE counter (hasUnpushed), so it correctly stays lit across an iOS reload —
   // and doubles as a live diagnostic: if it never clears, the phone's push isn't getting through.
   function updatePendingBadge() {
+    var dot = document.getElementById("sync-dot");
+    var acct = document.getElementById("acctBtn");
+    if (dot && acct && acct.contains(dot)) {
+      var p = !!(currentUser && hasUnpushed());
+      dot.style.background = p ? "#FFB020" : "";                  // amber = edits not saved to the cloud yet
+      acct.title = (currentUser && currentUser.email || "") + (p ? " \u2022 Pending sync" : "");
+      return;
+    }
     var badge = document.getElementById("sync-badge");
     if (!badge) return;
     var pending = document.getElementById("sync-pending");
-    var dot = document.getElementById("sync-dot");
     if (currentUser && hasUnpushed()) {
       if (dot) dot.style.background = "#FFB020";                 // amber dot = unsaved
       if (!pending) {
