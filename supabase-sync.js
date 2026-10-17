@@ -1136,7 +1136,8 @@
     var acct = document.getElementById("acctBtn");
     if (dot && acct && acct.contains(dot)) {
       var p = !!(currentUser && hasUnpushed());
-      dot.style.background = p ? "#FFB020" : "";                  // amber = edits not saved to the cloud yet
+      dot.style.background = "#FFB020";                           // no dot when synced; amber only while edits wait to upload
+      dot.style.display = p ? "" : "none";
       acct.title = (currentUser && currentUser.email || "") + (p ? " \u2022 Pending sync" : "");
       return;
     }
