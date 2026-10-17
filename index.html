@@ -220,14 +220,14 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   .pc-c .v { font: 700 10.5px/1 var(--font-mono); letter-spacing: -.4px; white-space: nowrap; }
   .pc-c .t { font-size: 9.5px; font-weight: 600; opacity: .55; white-space: nowrap; }
   .pc-c.up { border: 1px solid var(--gain); color: var(--pc-on); } .pc-c.dn { border: 1px solid var(--loss); color: var(--pc-on-loss); }
-  .pc-c.has.sel { border: 1.5px solid var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 28%, transparent); }   /* the day you tapped */
+  .pc-c.has.sel { border: 1px solid var(--accent); }   /* the day you tapped: same thin line as the green/red days, in cyan */
   .pc-c.up .d, .pc-c.dn .d { color: inherit; opacity: .5; }
   .pc-c.up, .pc-c.dn { text-shadow: var(--pc-sh); } .pc-c.up .d, .pc-c.dn .d { opacity: .5; }
  
   .pc-c.has { cursor: pointer; }
   .pc-c.today:not(.has) { border-color: var(--ink-faint); }
   .pc-c.sel { outline: 2px solid var(--accent); outline-offset: -1px; }
-  .pc-c.wk { background: transparent; border: 1px dashed var(--border); }
+  .pc-c.wk { background: transparent; border: 1px solid var(--border); }
   .pc-c.wk .d { text-transform: uppercase; letter-spacing: .5px; }
   .pc-day { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
   .pc-day h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: .6px; text-transform: uppercase; color: var(--ink-soft); }
