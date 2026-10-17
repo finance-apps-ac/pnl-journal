@@ -54,6 +54,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
      Derived from the 2026 budget tracker: deep navy ground, electric cyan
      structure, mint-green for money/positive, violet for secondary, coral for loss. */
   :root {
+    --pc-on: #FFFFFF; --pc-on-loss: #FFFFFF; --pc-a: 62%; --pc-sh: 0 1px 2px rgba(0,0,0,.35), 0 0 1px rgba(0,0,0,.25);   /* calendar day: text, colour strength, text shadow */
     --bg: #080D1A;
     --surface: #0F1728;
     --surface-2: #172139;
@@ -80,6 +81,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
 
   /* ---------- Light theme (auto = follows system; toggle = manual override) ---------- */
   :root[data-theme="light"] {
+    --pc-on: #0B1220; --pc-on-loss: #0B1220; --pc-a: 58%; --pc-sh: none;
     color-scheme: light;
     --bg:#F4F6FB; --surface:#FFFFFF; --surface-2:#EDF1F8; --border:#DCE3EE;
     --ink:#0F1A2E; --ink-soft:#54627C; --ink-faint:#8492AC;
@@ -92,6 +94,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme]) {
+      --pc-on: #0B1220; --pc-on-loss: #0B1220; --pc-a: 58%; --pc-sh: none;
       color-scheme: light;
       --bg:#F4F6FB; --surface:#FFFFFF; --surface-2:#EDF1F8; --border:#DCE3EE;
       --ink:#0F1A2E; --ink-soft:#54627C; --ink-faint:#8492AC;
@@ -104,6 +107,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     }
   }
   :root[data-theme="dark"] {
+    --pc-on: #FFFFFF; --pc-on-loss: #FFFFFF; --pc-a: 62%; --pc-sh: 0 1px 2px rgba(0,0,0,.35), 0 0 1px rgba(0,0,0,.25);
     color-scheme: dark;
     --bg:#080D1A; --surface:#0F1728; --surface-2:#172139; --border:#26324E;
     --ink:#EAF2FB; --ink-soft:#94A4BF; --ink-faint:#647294;
@@ -198,6 +202,39 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   .eq-dot { fill: var(--accent); }
   .zero-line { stroke: var(--ink-faint); stroke-width: 1; stroke-dasharray: 3 3; opacity: .55; }
   .bar.gain { fill: var(--gain); } .bar.loss { fill: var(--loss); }
+  /* ---- P&L calendar: every green and red day of a month ---- */
+  .pc-card { margin-top: 14px; }
+  .pc-nav { display: flex; align-items: center; gap: 6px; }
+  .pc-nav button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink); font-size: 18px; line-height: 1; cursor: pointer; padding: 0; }
+  .pc-nav button:disabled { opacity: .35; cursor: default; }
+  #calLabel { font-weight: 700; font-size: 13px; min-width: 84px; text-align: center; }
+  .pc-sum { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 6px 0 12px; }
+  .pc-sum div { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; min-width: 0; }
+  .pc-sum small { display: block; font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pc-sum b { display: block; margin-top: 4px; font: 700 14px/1.1 var(--font-mono); white-space: nowrap; }
+  .pc-grid { display: grid; gap: 5px; }
+  .pc-h { font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--ink-faint); text-align: center; padding: 2px 0 4px; }
+  .pc-c { position: relative; min-width: 0; height: 62px; border-radius: 10px; background: var(--surface-2); padding: 6px 3px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 1px solid transparent; font: inherit; color: var(--ink); text-align: center; overflow: hidden; }
+  .pc-c.out { background: transparent; }
+  .pc-c .d { font-size: 11px; font-weight: 600; color: var(--ink-faint); }
+  .pc-c .v { font: 800 12.5px/1 var(--font-ui); letter-spacing: -.2px; white-space: nowrap; }
+  .pc-c .t { font-size: 10px; font-weight: 600; opacity: .85; white-space: nowrap; }
+  .pc-c.up { border: 1.5px solid var(--gain); color: var(--pc-on); } .pc-c.dn { border: 1.5px solid var(--loss); color: var(--pc-on-loss); }
+  .pc-c.up.sel { outline: 2px solid var(--gain); outline-offset: 1px; } .pc-c.dn.sel { outline: 2px solid var(--loss); outline-offset: 1px; }
+  .pc-c.up .d, .pc-c.dn .d { color: inherit; opacity: .7; }
+  .pc-c.up, .pc-c.dn { text-shadow: var(--pc-sh); } .pc-c.up .d, .pc-c.dn .d { opacity: .85; }
+ 
+  .pc-c.has { cursor: pointer; }
+  .pc-c.today:not(.has) { border-color: var(--ink-faint); }
+  .pc-c.sel { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .pc-c.wk { background: transparent; border: 1px dashed var(--border); }
+  .pc-c.wk .d { text-transform: uppercase; letter-spacing: .5px; }
+  .pc-day { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+  .pc-day h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: .6px; text-transform: uppercase; color: var(--ink-soft); }
+  .pc-tr { display: flex; align-items: baseline; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .pc-tr:last-child { border-bottom: 0; }
+  .pc-tr b { min-width: 56px; } .pc-tr .nt { flex: 1; min-width: 0; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .pc-tr .pl { font-family: var(--font-mono); font-weight: 700; }
+  @media (max-width: 380px) { .pc-c { height: 56px; } .pc-c .v { font-size: 11px; } .pc-c .t { font-size: 9px; } .pc-sum b { font-size: 13px; } }
 
   /* ---------- add form ---------- */
   .addform summary { cursor: pointer; font-weight: 700; font-size: 13px; list-style: none;
@@ -500,6 +537,14 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       <div class="card-head"><h2>Monthly P&amp;L</h2><span class="card-sub" id="monthlyYearLabel"></span></div>
       <div class="chart" id="monthlyChart"></div>
     </div>
+  </section>
+
+  <section class="card pc-card" id="calCard" aria-label="P&amp;L calendar">
+    <div class="card-head"><h2>P&amp;L calendar</h2>
+      <div class="pc-nav"><button type="button" id="calPrev" aria-label="Previous month">&#8249;</button><span id="calLabel"></span><button type="button" id="calNext" aria-label="Next month">&#8250;</button></div></div>
+    <div class="pc-sum" id="calSum"></div>
+    <div class="pc-grid" id="calGrid"></div>
+    <div class="pc-day" id="calDay" hidden></div>
   </section>
 
   <section class="tiles" id="acctSummary" style="margin-top:18px; margin-bottom:18px;" aria-label="Account value">
@@ -1138,6 +1183,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     renderEquity(rows);
     renderMonthly(rows);
     renderMonthlyChart(rows, yr);
+    renderCalendar(rows, yr);
     renderTrades();
     renderHoldings();
     renderContrib();
@@ -1570,7 +1616,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       var bx = padL + i * bw + bw * 0.16, w = bw * 0.68;
       var top = o.net >= 0 ? y(o.net) : zeroY, h = Math.abs(y(o.net) - zeroY);
       var lbl = monthName(o.k).split(" ")[0];
-      return '<rect class="bar ' + (o.net >= 0 ? "gain" : "loss") + '" x="' + bx.toFixed(1) + '" y="' + top.toFixed(1) +
+      return '<rect class="bar ' + (o.net >= 0 ? "gain" : "loss") + '" data-k="' + o.k + '" style="cursor:pointer" x="' + bx.toFixed(1) + '" y="' + top.toFixed(1) +
              '" width="' + w.toFixed(1) + '" height="' + Math.max(1, h).toFixed(1) + '" rx="2"/>' +
              '<text class="axis-text" x="' + (bx + w / 2).toFixed(1) + '" y="' + (H - 12) + '" text-anchor="middle">' + lbl + '</text>';
     }).join("");
@@ -1583,6 +1629,81 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     host.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Monthly profit and loss">' +
       grid + '<line class="zero-line" x1="' + padL + '" y1="' + zeroY.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + zeroY.toFixed(1) + '"/>' + bars + '</svg>';
   }
+
+  // ---------- P&L calendar ----------
+  // Every closed trade lands on its close date. Same rows (year filter) as the Monthly P&L chart, so the two always agree.
+  var calMonth = null, calSel = null, calRows = [], calYr = "all";
+  function calKey(d) { return d.getFullYear() + "-" + (d.getMonth() < 9 ? "0" : "") + (d.getMonth() + 1); }
+  function calShift(k, n) { var p = k.split("-"); return calKey(new Date(+p[0], +p[1] - 1 + n, 1)); }
+  function calShort(v) { var a = Math.abs(v), s = v > 0 ? "+" : v < 0 ? "−" : "";
+    return s + "$" + (a >= 10000 ? Math.round(a / 1000) + "k" : a >= 1000 ? (a / 1000).toFixed(1).replace(/\.0$/, "") + "k" : Math.round(a)); }
+  function calBounds(yr) {
+    var ks = calRows.map(function (r) { return r.t.closeDate.slice(0, 7); }).sort(), now = calKey(new Date());
+    if (yr !== "all") return { lo: yr + "-01", hi: yr + "-12" };
+    return { lo: ks.length ? (ks[0] < now ? ks[0] : now) : now, hi: ks.length ? (ks[ks.length - 1] > now ? ks[ks.length - 1] : now) : now };
+  }
+  function renderCalendar(rows, yr) {
+    calRows = rows; calYr = yr;
+    var host = document.getElementById("calGrid"); if (!host) return;
+    var b = calBounds(yr), now = calKey(new Date());
+    if (!calMonth || calMonth < b.lo || calMonth > b.hi) {
+      var ks = rows.map(function (r) { return r.t.closeDate.slice(0, 7); }).sort();
+      calMonth = (yr === "all" || now.slice(0, 4) === yr) && (!ks.length || ks[ks.length - 1] <= now) ? now : (ks.length ? ks[ks.length - 1] : b.hi);
+      if (calMonth < b.lo || calMonth > b.hi) calMonth = b.hi;
+    }
+    var days = {};
+    rows.forEach(function (r) { var d = r.t.closeDate.slice(0, 10); if (d.slice(0, 7) !== calMonth) return;
+      (days[d] = days[d] || { pnl: 0, n: 0, list: [] }); days[d].pnl += r.c.pnl; days[d].n++; days[d].list.push(r); });
+    var vals = Object.keys(days).map(function (k) { return days[k].pnl; }), maxA = Math.max.apply(null, vals.map(Math.abs).concat([1]));
+    var tot = 0, gd = 0, rd = 0, best = null;
+    vals.forEach(function (v) { tot += v; if (v > 0) gd++; else if (v < 0) rd++; if (best === null || v > best) best = v; });
+    document.getElementById("calLabel").textContent = monthName(calMonth);
+    document.getElementById("calPrev").disabled = calMonth <= b.lo;
+    document.getElementById("calNext").disabled = calMonth >= b.hi;
+    document.getElementById("calSum").innerHTML =
+      '<div><small>Month</small><b class="' + cls(tot) + '">' + signed(tot) + '</b></div>' +
+      '<div><small>Green</small><b class="pos">' + gd + (gd === 1 ? ' day' : ' days') + '</b></div>' +
+      '<div><small>Red</small><b class="neg">' + rd + (rd === 1 ? ' day' : ' days') + '</b></div>' +
+      '<div><small>Best</small><b class="' + cls(best || 0) + '">' + (best === null ? "—" : signed(best)) + '</b></div>';
+    var p = calMonth.split("-"), first = new Date(+p[0], +p[1] - 1, 1), dim = new Date(+p[0], +p[1], 0).getDate();
+    var lead = (first.getDay() + 6) % 7, todayD = new Date(), html = "";
+    // stock traders trade Mon–Fri: show the weekend only when this month actually has weekend trades (crypto etc.)
+    var wkEnd = Object.keys(days).some(function (k) { var g = new Date(k + "T12:00:00").getDay(); return g === 0 || g === 6; }), cols = wkEnd ? 7 : 5;
+    host.style.gridTemplateColumns = "repeat(" + cols + ", minmax(0, 1fr)) minmax(0, 1.15fr)";
+    ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].slice(0, cols).concat(["Week"]).forEach(function (h) { html += '<div class="pc-h">' + h + '</div>'; });
+    var cells = Math.ceil((lead + dim) / 7) * 7, wk = 0, wkN = 0, rowHas = false, row = "";
+    for (var i = 0; i < cells; i++) {
+      var dn = i - lead + 1, dow = i % 7, cell = "";
+      if (dn < 1 || dn > dim) cell = '<div class="pc-c out"></div>';
+      else {
+        var key = calMonth + "-" + (dn < 10 ? "0" : "") + dn, o = days[key];
+        var isToday = todayD.getFullYear() === +p[0] && todayD.getMonth() === +p[1] - 1 && todayD.getDate() === dn;
+        rowHas = true;
+        if (o) {
+          wk += o.pnl; wkN += o.n;
+          var fill = Math.round(26 + 59 * Math.min(1, Math.abs(o.pnl) / maxA));    // 26%–85% of the day colour
+          cell = '<button type="button" class="pc-c has ' + (o.pnl >= 0 ? "up" : "dn") + (isToday ? " today" : "") + (calSel === key ? " sel" : "") + '" data-day="' + key + '" style="background:color-mix(in srgb, var(' + (o.pnl >= 0 ? "--gain" : "--loss") + ') ' + fill + '%, transparent)" aria-label="' + key + ': ' + signed(o.pnl) + ', ' + o.n + ' trade' + (o.n > 1 ? "s" : "") + '">' +
+            '<span class="d">' + dn + '</span><span class="v">' + calShort(o.pnl) + '</span><span class="t">' + o.n + (o.n > 1 ? " trades" : " trade") + '</span></button>';
+        } else cell = '<div class="pc-c' + (isToday ? " today" : "") + '"><span class="d">' + dn + '</span></div>';
+      }
+      if (dow < cols) row += cell;
+      if (dow === 6) {
+        row += '<div class="pc-c wk">' + (wkN ? '<span class="v ' + cls(wk) + '">' + calShort(wk) + '</span><span class="t" style="color:var(--ink-faint)">' + wkN + (wkN > 1 ? " trades" : " trade") + '</span>' : '<span class="v" style="color:var(--ink-faint)">—</span>') + '</div>';
+        // skip a trailing row that only holds a hidden weekend day
+        var shown = false; for (var q = i - 6; q < i - 6 + cols; q++) { var dq = q - lead + 1; if (dq >= 1 && dq <= dim) shown = true; }
+        if (shown) html += row;
+        row = ""; wk = 0; wkN = 0; rowHas = false;
+      }
+    }
+    host.innerHTML = html;
+    var box = document.getElementById("calDay"), sel = calSel && days[calSel];
+    if (!sel) { box.hidden = true; box.innerHTML = ""; return; }
+    var dt = new Date(calSel + "T12:00:00");
+    box.hidden = false;
+    box.innerHTML = '<h3>' + dt.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" }) + ' · <span class="' + cls(sel.pnl) + '">' + signed(sel.pnl) + '</span></h3>' +
+      sel.list.map(function (r) { return '<div class="pc-tr"><b>' + esc(r.t.symbol || "—") + '</b><span class="nt">' + esc(r.t.notes || r.t.strategy || "") + '</span><span class="pl ' + cls(r.c.pnl) + '">' + signed(r.c.pnl) + '</span></div>'; }).join("");
+  }
+  function calGo(k) { calMonth = k; calSel = null; renderCalendar(calRows, calYr); }
 
   // ---------- trades table ----------
   // All Trades view state: which timeframe tab is active + whether the full list is expanded.
@@ -2431,6 +2552,17 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   }
 
   document.getElementById("yearFilter").addEventListener("change", render);
+  document.getElementById("calPrev").addEventListener("click", function () { calGo(calShift(calMonth, -1)); });
+  document.getElementById("calNext").addEventListener("click", function () { calGo(calShift(calMonth, 1)); });
+  document.getElementById("calGrid").addEventListener("click", function (ev) {
+    var c = ev.target.closest("[data-day]"); if (!c) return;
+    calSel = calSel === c.getAttribute("data-day") ? null : c.getAttribute("data-day"); renderCalendar(calRows, calYr);
+  });
+  document.getElementById("monthlyChart").addEventListener("click", function (ev) {
+    var b = ev.target.closest("[data-k]"); if (!b) return;
+    calGo(b.getAttribute("data-k"));
+    var cc = document.getElementById("calCard"); if (cc && cc.scrollIntoView) cc.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 
   // ---------- add year ----------
   var newYearInput = document.getElementById("newYear");
