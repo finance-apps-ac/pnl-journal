@@ -40,12 +40,13 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
 </head>
 <body>
 <!-- Cross-device sync: login + cloud storage. Must load before the app script. -->
-<script>window.SYNC_CONFIG = { app: "pnl", name: "P&L", keys: ["ledger.trades.v1", "ledger.holdings.v1", "ledger.contrib.v1", "ledger.withdraw.v1", "ledger.years.v1", "ledger.cash.v1", "ledger.lots.v1"] };</script>
+<script>window.SYNC_CONFIG = { app: "pnl", name: "P&L", keys: ["ledger.trades.v1", "ledger.holdings.v1", "ledger.contrib.v1", "ledger.withdraw.v1", "ledger.years.v1", "ledger.cash.v1", "ledger.lots.v1", "ledger.imported.v1", "ledger.feedback.v1"] };</script>
 <script>window.DEMO_SEED = {"ledger.trades.v1": [{"id": "m1", "openDate": "2025-01-08", "closeDate": "2025-01-08", "symbol": "NVDA", "direction": "long", "qty": 20, "entry": "", "exit": "", "fees": 0, "manualPnl": 420, "saleValue": 10240, "notes": "Momentum breakout"}, {"id": "m2", "openDate": "2025-01-22", "closeDate": "2025-01-22", "symbol": "AAPL", "direction": "long", "qty": 50, "entry": "", "exit": "", "fees": 0, "manualPnl": -315, "saleValue": 9800, "notes": "Stopped out"}, {"id": "m3", "openDate": "2025-02-05", "closeDate": "2025-02-05", "symbol": "AMD", "direction": "long", "qty": 40, "entry": "", "exit": "", "fees": 0, "manualPnl": 260, "saleValue": 7120, "notes": "Gap fill"}, {"id": "m4", "openDate": "2025-02-19", "closeDate": "2025-02-19", "symbol": "TSLA", "direction": "long", "qty": 10, "entry": "", "exit": "", "fees": 0, "manualPnl": -280, "saleValue": 2050, "notes": "Stopped out"}, {"id": "m5", "openDate": "2025-03-06", "closeDate": "2025-03-06", "symbol": "META", "direction": "long", "qty": 12, "entry": "", "exit": "", "fees": 0, "manualPnl": 540, "saleValue": 6140, "notes": "Earnings run"}, {"id": "m6", "openDate": "2025-03-20", "closeDate": "2025-03-20", "symbol": "MSFT", "direction": "long", "qty": 25, "entry": "", "exit": "", "fees": 0, "manualPnl": 90, "saleValue": 10050, "notes": "Quick scalp"}, {"id": "m7", "openDate": "2025-04-09", "closeDate": "2025-04-09", "symbol": "AMZN", "direction": "long", "qty": 30, "entry": "", "exit": "", "fees": 0, "manualPnl": -505, "saleValue": 5670, "notes": "Stopped out"}, {"id": "m8", "openDate": "2025-04-23", "closeDate": "2025-04-23", "symbol": "GOOGL", "direction": "long", "qty": 22, "entry": "", "exit": "", "fees": 0, "manualPnl": 210, "saleValue": 3870, "notes": "Range play"}, {"id": "m9", "openDate": "2025-05-07", "closeDate": "2025-05-07", "symbol": "PLTR", "direction": "long", "qty": 300, "entry": "", "exit": "", "fees": 0, "manualPnl": -940, "saleValue": 7350, "notes": "Stopped out"}, {"id": "m10", "openDate": "2025-05-21", "closeDate": "2025-05-21", "symbol": "COIN", "direction": "long", "qty": 40, "entry": "", "exit": "", "fees": 0, "manualPnl": 1240, "saleValue": 9860, "notes": "News pop, scaled out"}, {"id": "m11", "openDate": "2025-06-04", "closeDate": "2025-06-04", "symbol": "SHOP", "direction": "long", "qty": 25, "entry": "", "exit": "", "fees": 0, "manualPnl": 310, "saleValue": 2680, "notes": "Bounce off support"}, {"id": "m12", "openDate": "2025-06-18", "closeDate": "2025-06-18", "symbol": "NFLX", "direction": "long", "qty": 10, "entry": "", "exit": "", "fees": 0, "manualPnl": -205, "saleValue": 6100, "notes": "Stopped out"}, {"id": "m13", "openDate": "2025-07-09", "closeDate": "2025-07-09", "symbol": "NVDA", "direction": "long", "qty": 25, "entry": "", "exit": "", "fees": 0, "manualPnl": 1450, "saleValue": 13100, "notes": "Earnings run-up, sold strength"}, {"id": "m14", "openDate": "2025-07-23", "closeDate": "2025-07-23", "symbol": "AMD", "direction": "long", "qty": 30, "entry": "", "exit": "", "fees": 0, "manualPnl": -415, "saleValue": 5340, "notes": "Stopped out"}, {"id": "m15", "openDate": "2025-08-06", "closeDate": "2025-08-06", "symbol": "AAPL", "direction": "long", "qty": 15, "entry": "", "exit": "", "fees": 0, "manualPnl": 130, "saleValue": 2940, "notes": "Quick scalp"}, {"id": "m16", "openDate": "2025-08-20", "closeDate": "2025-08-20", "symbol": "MSFT", "direction": "long", "qty": 15, "entry": "", "exit": "", "fees": 0, "manualPnl": 320, "saleValue": 6300, "notes": "Trend continuation"}, {"id": "m17", "openDate": "2025-09-10", "closeDate": "2025-09-10", "symbol": "TSLA", "direction": "long", "qty": 12, "entry": "", "exit": "", "fees": 0, "manualPnl": -765, "saleValue": 2760, "notes": "Stopped out"}, {"id": "m18", "openDate": "2025-09-24", "closeDate": "2025-09-24", "symbol": "META", "direction": "long", "qty": 8, "entry": "", "exit": "", "fees": 0, "manualPnl": 180, "saleValue": 4100, "notes": "Fade the gap"}, {"id": "m19", "openDate": "2025-10-08", "closeDate": "2025-10-08", "symbol": "AMZN", "direction": "long", "qty": 30, "entry": "", "exit": "", "fees": 0, "manualPnl": -605, "saleValue": 5820, "notes": "Stopped out"}, {"id": "m20", "openDate": "2025-10-22", "closeDate": "2025-10-22", "symbol": "NVDA", "direction": "long", "qty": 12, "entry": "", "exit": "", "fees": 0, "manualPnl": 760, "saleValue": 6300, "notes": "Held the trend"}, {"id": "h0", "openDate": "2025-10-31", "closeDate": "2025-11-03", "symbol": "AMD", "direction": "long", "qty": 50, "entry": "214.80", "exit": "221.00", "fees": 0, "notes": "Hit the 2R target"}, {"id": "h1", "openDate": "2025-11-04", "closeDate": "2025-11-04", "symbol": "META", "direction": "long", "qty": 50, "entry": "598.30", "exit": "593.50", "fees": 0, "notes": "Failed breakout"}, {"id": "h2", "openDate": "2025-11-04", "closeDate": "2025-11-05", "symbol": "PLTR", "direction": "long", "qty": 50, "entry": "172.50", "exit": "182.90", "fees": 0, "notes": "Breakout retest"}, {"id": "h3", "openDate": "2025-11-03", "closeDate": "2025-11-05", "symbol": "AMZN", "direction": "long", "qty": 50, "entry": "226.90", "exit": "223.80", "fees": 0, "notes": "Stopped out"}, {"id": "h4", "openDate": "2025-11-04", "closeDate": "2025-11-06", "symbol": "MSFT", "direction": "long", "qty": 50, "entry": "502.10", "exit": "505.80", "fees": 0, "notes": "VWAP reclaim"}, {"id": "h5", "openDate": "2025-11-04", "closeDate": "2025-11-07", "symbol": "COIN", "direction": "long", "qty": 50, "entry": "318.70", "exit": "311.60", "fees": 0, "notes": "Failed breakout"}, {"id": "h6", "openDate": "2025-11-08", "closeDate": "2025-11-10", "symbol": "NVDA", "direction": "long", "qty": 50, "entry": "181.20", "exit": "194.00", "fees": 0, "notes": "Breakout retest"}, {"id": "h7", "openDate": "2025-11-08", "closeDate": "2025-11-11", "symbol": "AAPL", "direction": "long", "qty": 50, "entry": "268.40", "exit": "270.30", "fees": 0, "notes": "VWAP reclaim"}, {"id": "h8", "openDate": "2025-11-12", "closeDate": "2025-11-12", "symbol": "TSLA", "direction": "long", "qty": 50, "entry": "412.60", "exit": "407.20", "fees": 0, "notes": "Stopped out"}, {"id": "h9", "openDate": "2025-11-11", "closeDate": "2025-11-12", "symbol": "PLTR", "direction": "long", "qty": 50, "entry": "172.50", "exit": "169.90", "fees": 0, "notes": "Failed breakout"}, {"id": "h10", "openDate": "2025-11-12", "closeDate": "2025-11-13", "symbol": "AMD", "direction": "long", "qty": 50, "entry": "214.80", "exit": "222.40", "fees": 0, "notes": "Hit the 2R target"}, {"id": "h11", "openDate": "2025-11-12", "closeDate": "2025-11-14", "symbol": "META", "direction": "long", "qty": 50, "entry": "598.30", "exit": "602.50", "fees": 0, "notes": "Opening range break"}, {"id": "h12", "openDate": "2025-11-16", "closeDate": "2025-11-17", "symbol": "COIN", "direction": "long", "qty": 50, "entry": "318.70", "exit": "310.90", "fees": 0, "notes": "Cut it at -1R"}, {"id": "h13", "openDate": "2025-11-16", "closeDate": "2025-11-18", "symbol": "AMZN", "direction": "long", "qty": 50, "entry": "226.90", "exit": "236.00", "fees": 0, "notes": "Hit the 2R target"}, {"id": "h14", "openDate": "2025-11-15", "closeDate": "2025-11-18", "symbol": "AAPL", "direction": "long", "qty": 50, "entry": "268.40", "exit": "270.80", "fees": 0, "notes": "Opening range break"}, {"id": "h15", "openDate": "2025-11-16", "closeDate": "2025-11-19", "symbol": "SPY", "direction": "long", "qty": 50, "entry": "668.20", "exit": "664.10", "fees": 0, "notes": "Failed breakout"}, {"id": "h16", "openDate": "2025-11-20", "closeDate": "2025-11-20", "symbol": "NVDA", "direction": "long", "qty": 50, "entry": "181.20", "exit": "186.70", "fees": 0, "notes": "Breakout retest"}, {"id": "h17", "openDate": "2025-11-20", "closeDate": "2025-11-21", "symbol": "AAPL", "direction": "long", "qty": 50, "entry": "268.40", "exit": "282.20", "fees": 0, "notes": "VWAP reclaim"}, {"id": "h18", "openDate": "2025-11-24", "closeDate": "2025-11-24", "symbol": "META", "direction": "long", "qty": 50, "entry": "598.30", "exit": "592.00", "fees": 0, "notes": "Stopped out"}, {"id": "h19", "openDate": "2025-11-24", "closeDate": "2025-11-25", "symbol": "PLTR", "direction": "long", "qty": 50, "entry": "172.50", "exit": "179.10", "fees": 0, "notes": "Breakout retest"}, {"id": "h20", "openDate": "2025-11-24", "closeDate": "2025-11-26", "symbol": "MSFT", "direction": "long", "qty": 50, "entry": "502.10", "exit": "504.90", "fees": 0, "notes": "VWAP reclaim"}, {"id": "h21", "openDate": "2025-11-30", "closeDate": "2025-12-01", "symbol": "AAPL", "direction": "long", "qty": 50, "entry": "268.40", "exit": "273.70", "fees": 0, "notes": "VWAP reclaim"}, {"id": "h22", "openDate": "2025-11-30", "closeDate": "2025-12-02", "symbol": "TSLA", "direction": "long", "qty": 50, "entry": "412.60", "exit": "407.50", "fees": 0, "notes": "Cut it at -1R"}, {"id": "h23", "openDate": "2025-11-30", "closeDate": "2025-12-03", "symbol": "AMD", "direction": "long", "qty": 50, "entry": "214.80", "exit": "224.40", "fees": 0, "notes": "Hit the 2R target"}, {"id": "h24", "openDate": "2025-12-03", "closeDate": "2025-12-03", "symbol": "MSFT", "direction": "long", "qty": 50, "entry": "502.10", "exit": "504.80", "fees": 0, "notes": "Opening range break"}, {"id": "h25", "openDate": "2025-12-04", "closeDate": "2025-12-04", "symbol": "META", "direction": "long", "qty": 50, "entry": "598.30", "exit": "595.10", "fees": 0, "notes": "Failed breakout"}, {"id": "h26", "openDate": "2025-12-04", "closeDate": "2025-12-05", "symbol": "PLTR", "direction": "long", "qty": 50, "entry": "172.50", "exit": "186.90", "fees": 0, "notes": "Breakout retest"}, {"id": "h27", "openDate": "2025-12-08", "closeDate": "2025-12-08", "symbol": "AMZN", "direction": "long", "qty": 50, "entry": "226.90", "exit": "218.10", "fees": 0, "notes": "Cut it at -1R"}, {"id": "h28", "openDate": "2025-12-08", "closeDate": "2025-12-09", "symbol": "SPY", "direction": "long", "qty": 50, "entry": "668.20", "exit": "674.40", "fees": 0, "notes": "Opening range break"}, {"id": "h29", "openDate": "2025-12-08", "closeDate": "2025-12-10", "symbol": "NVDA", "direction": "long", "qty": 50, "entry": "181.20", "exit": "184.70", "fees": 0, "notes": "Breakout retest"}, {"id": "h30", "openDate": "2025-12-07", "closeDate": "2025-12-10", "symbol": "AMD", "direction": "long", "qty": 50, "entry": "214.80", "exit": "212.80", "fees": 0, "notes": "Cut it at -1R"}, {"id": "h31", "openDate": "2025-12-08", "closeDate": "2025-12-11", "symbol": "AAPL", "direction": "long", "qty": 50, "entry": "268.40", "exit": "272.10", "fees": 0, "notes": "VWAP reclaim"}, {"id": "h32", "openDate": "2025-12-12", "closeDate": "2025-12-12", "symbol": "TSLA", "direction": "long", "qty": 50, "entry": "412.60", "exit": "423.80", "fees": 0, "notes": "Bull flag break"}, {"id": "h33", "openDate": "2025-12-12", "closeDate": "2025-12-15", "symbol": "PLTR", "direction": "long", "qty": 50, "entry": "172.50", "exit": "177.10", "fees": 0, "notes": "Breakout retest"}, {"id": "h34", "openDate": "2025-12-16", "closeDate": "2025-12-16", "symbol": "MSFT", "direction": "long", "qty": 50, "entry": "502.10", "exit": "496.00", "fees": 0, "notes": "Failed breakout"}, {"id": "h35", "openDate": "2025-12-15", "closeDate": "2025-12-16", "symbol": "SPY", "direction": "long", "qty": 50, "entry": "668.20", "exit": "665.80", "fees": 0, "notes": "Cut it at -1R"}, {"id": "h36", "openDate": "2025-12-16", "closeDate": "2025-12-17", "symbol": "COIN", "direction": "long", "qty": 50, "entry": "318.70", "exit": "336.50", "fees": 0, "notes": "Bull flag break"}, {"id": "h37", "openDate": "2025-12-16", "closeDate": "2025-12-18", "symbol": "AMZN", "direction": "long", "qty": 50, "entry": "226.90", "exit": "229.70", "fees": 0, "notes": "Hit the 2R target"}, {"id": "h38", "openDate": "2025-12-16", "closeDate": "2025-12-19", "symbol": "SPY", "direction": "long", "qty": 50, "entry": "668.20", "exit": "660.90", "fees": 0, "notes": "Failed breakout"}, {"id": "h39", "openDate": "2025-12-20", "closeDate": "2025-12-22", "symbol": "TSLA", "direction": "long", "qty": 50, "entry": "412.60", "exit": "420.10", "fees": 0, "notes": "Bull flag break"}, {"id": "h40", "openDate": "2025-12-20", "closeDate": "2025-12-23", "symbol": "AMD", "direction": "long", "qty": 50, "entry": "214.80", "exit": "218.00", "fees": 0, "notes": "Hit the 2R target"}, {"id": "h41", "openDate": "2025-12-24", "closeDate": "2025-12-24", "symbol": "META", "direction": "long", "qty": 50, "entry": "598.30", "exit": "600.20", "fees": 0, "notes": "Opening range break"}, {"id": "h42", "openDate": "2025-12-24", "closeDate": "2025-12-26", "symbol": "MSFT", "direction": "long", "qty": 50, "entry": "502.10", "exit": "506.30", "fees": 0, "notes": "VWAP reclaim"}, {"id": "h43", "openDate": "2025-12-28", "closeDate": "2025-12-29", "symbol": "SPY", "direction": "long", "qty": 50, "entry": "668.20", "exit": "670.80", "fees": 0, "notes": "Opening range break"}, {"id": "h44", "openDate": "2025-12-28", "closeDate": "2025-12-30", "symbol": "NVDA", "direction": "long", "qty": 50, "entry": "181.20", "exit": "188.10", "fees": 0, "notes": "Breakout retest"}, {"id": "h45", "openDate": "2025-12-27", "closeDate": "2025-12-30", "symbol": "AMD", "direction": "long", "qty": 50, "entry": "214.80", "exit": "212.80", "fees": 0, "notes": "Failed breakout"}], "ledger.holdings.v1": [{"id": "h1", "symbol": "NVDA", "shares": 30, "cost": 500, "value": 15600, "note": "Core position — riding the trend"}, {"id": "h2", "symbol": "AAPL", "shares": 60, "cost": 188, "value": 11700, "note": ""}, {"id": "h3", "symbol": "AMD", "shares": 45, "cost": 170, "value": 8100, "note": ""}, {"id": "h4", "symbol": "MSFT", "shares": 20, "cost": 405, "value": 8300, "note": ""}, {"id": "h5", "symbol": "PLTR", "shares": 200, "cost": 24, "value": 5200, "note": "Long-term hold"}], "ledger.contrib.v1": {"2025-01": 200, "2025-02": 350, "2025-03": 250, "2025-04": 500, "2025-05": 300, "2025-06": 400, "2025-07": 1500, "2025-08": 350, "2025-09": 450, "2025-10": 300, "2025-11": 250, "2025-12": 600}, "ledger.years.v1": []};</script>
-<script src="lang.js?v=2"></script>
+<script src="lang.js?v=5"></script>
 <script src="i18n.js?v=2"></script>
 <script src="supabase-sync.js?v=33"></script>
 <script src="native.js?v=2"></script>
+<script src="import.js?v=1"></script>
 <style>
   /* ---------- reset (self-sufficient when opened as a local file) ---------- */
   *, *::before, *::after { box-sizing: border-box; }
@@ -261,6 +262,30 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   .addform summary::before { content: "＋ "; font-weight: 700; }
   .addform[open] summary::before { content: "－ "; }
   .form-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }
+  /* broker CSV import (Nov 2026) */
+  .imp { margin-top: 14px; display: grid; gap: 12px; }
+  .imp-lead { margin: 0; color: var(--ink-faint); font-size: 13.5px; line-height: 1.5; }
+  .imp-brokers { display: flex; flex-wrap: wrap; gap: 6px; }
+  .imp-brokers button { border: 1px solid var(--border); background: transparent; color: var(--ink); border-radius: 999px; padding: 6px 11px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  .imp-brokers button.on { border-color: var(--accent); color: var(--accent); }
+  .imp-howto { font-size: 13px; color: var(--ink-faint); line-height: 1.5; background: var(--surface-2, rgba(127,127,127,.08)); border-radius: 10px; padding: 10px 12px; }
+  .imp-file { justify-self: start; position: relative; overflow: hidden; }
+  .imp-box { border: 1px solid var(--border); border-radius: 12px; padding: 12px; display: grid; gap: 10px; font-size: 13.5px; }
+  .imp-box .imp-sum b { font-size: 15px; }
+  .imp-box .imp-note { color: var(--ink-faint); font-size: 12.5px; line-height: 1.45; }
+  .imp-box .imp-warn { color: var(--loss); font-size: 12.5px; line-height: 1.45; }
+  .imp-box table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .imp-scroll { overflow-x: auto; }
+  .imp-box th { font-size: 10.5px; }
+  .imp-box td, .imp-box th { white-space: nowrap; }
+  
+  .st-row.h span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .imp-box td, .imp-box th { padding: 4px 4px; text-align: left; border-bottom: 1px solid var(--border); }
+  .imp-box .buy { color: var(--gain); } .imp-box .sell { color: var(--loss); }
+  .imp-map { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .imp-map label { display: grid; gap: 4px; font-size: 12px; color: var(--ink-faint); }
+  .imp-seg { display: inline-flex; gap: 4px; } .imp-seg button { border: 1px solid var(--border); background: transparent; color: var(--ink); border-radius: 8px; padding: 5px 10px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  .imp-seg button.on { border-color: var(--accent); color: var(--accent); }
   .form-grid[hidden] { display: none; }   /* grid display would otherwise override the hidden attr */
   .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
   .field.wide { grid-column: span 2; }
@@ -499,6 +524,43 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
                    padding: 10px 12px; color: var(--ink); font-size: 14px; line-height: 1.5; }
   #noteModalText:focus { border-color: var(--accent); outline: none; }
   .note-modal-foot { display: flex; justify-content: flex-end; margin-top: 12px; }
+  /* trade tags in the note popup (Nov 2026): setup, mistakes, planned stop */
+  .tg { display: grid; gap: 8px; margin-top: 12px; }
+  .tg-lbl { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-faint); font-weight: 700; }
+  .tg-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tg-chips button { border: 1px solid var(--border); background: transparent; color: var(--ink-soft); border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  .tg-chips button.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .tg-chips.mis button.on { border-color: var(--loss); color: var(--loss); background: var(--loss-soft); }
+  .tg-row { display: flex; gap: 8px; align-items: center; } .tg-row input { flex: 1; min-width: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; color: var(--ink); font: inherit; font-size: 13.5px; }
+  .t-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 4px; vertical-align: middle; }
+  .t-tag { font-size: 10.5px; border-radius: 999px; padding: 1px 7px; border: 1px solid var(--border); color: var(--ink-soft); white-space: nowrap; }
+  .t-tag.mis { border-color: color-mix(in srgb, var(--loss) 45%, var(--border)); color: var(--loss); }
+  /* trading report + stats (Nov 2026) */
+  .st-ins { display: grid; gap: 8px; margin: 4px 0 14px; padding: 0; list-style: none; }
+  .st-ins li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.45; color: var(--ink-soft); }
+  .st-ins li i { flex: none; width: 8px; height: 8px; border-radius: 99px; margin-top: 7px; background: var(--accent); }
+  .st-ins li.good i { background: var(--gain); } .st-ins li.bad i { background: var(--loss); }
+  .st-ins b { color: var(--ink); }
+  .st-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+  .st-kpi { background: var(--surface-2); border-radius: 10px; padding: 9px 10px; min-width: 0; }
+  .st-kpi small { display: block; font-size: 10.5px; letter-spacing: .8px; text-transform: uppercase; color: var(--ink-faint); font-weight: 700; }
+  .st-kpi b { display: block; font-family: var(--font-mono); font-size: 16px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .st-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .st-tabs button { border: 1px solid var(--border); background: transparent; color: var(--ink-soft); border-radius: 999px; padding: 6px 11px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  .st-tabs button.on { border-color: var(--accent); color: var(--accent); }
+  .st-row { display: grid; grid-template-columns: minmax(0, 1.3fr) 54px 46px minmax(0, 1.4fr); gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .st-row.h { color: var(--ink-faint); font-size: 10.5px; letter-spacing: .8px; text-transform: uppercase; font-weight: 700; }
+  .st-row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+  .st-row .n, .st-row .w { font-family: var(--font-mono); color: var(--ink-soft); text-align: right; }
+  .st-bar { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .st-bar span { height: 8px; border-radius: 99px; flex: none; min-width: 3px; }
+  .st-bar em { font-style: normal; font-family: var(--font-mono); font-size: 12.5px; white-space: nowrap; }
+  .st-lock { position: relative; border-radius: 12px; overflow: hidden; }
+  .st-lock-blur { filter: blur(5px); opacity: .55; pointer-events: none; }
+  .st-lock-cta { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; padding: 10px; }
+  .st-lock-cta b { font-size: 15px; color: var(--ink); } .st-lock-cta span { font-size: 12.5px; color: var(--ink-soft); max-width: 300px; line-height: 1.4; }
+  .st-empty { color: var(--ink-faint); font-size: 13.5px; line-height: 1.5; padding: 6px 0 2px; }
+  @media (max-width: 380px) { .st-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .st-row { grid-template-columns: minmax(0, 1.2fr) 40px 40px minmax(0, 1.4fr); } }
   .contrib-donut { max-width: 250px; margin: 10px auto 8px; }
   .contrib-donut svg { width: 100%; height: auto; display: block; }
   .donut-total { fill: var(--ink); font-family: var(--font-mono); font-size: 27px; font-weight: 700; }
@@ -564,6 +626,12 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     <div class="pc-sum" id="calSum"></div>
     <div class="pc-grid" id="calGrid"></div>
     <div class="pc-day" id="calDay" hidden></div>
+  </section>
+
+  <!-- Your trading report: insights, key numbers and breakdowns by setup / mistake / weekday / hold time / symbol -->
+  <section class="card" id="statsCard" aria-label="Your trading report">
+    <div class="card-head"><h2>Your trading report</h2><span class="card-sub" id="statsSub"></span></div>
+    <div id="statsBody"></div>
   </section>
 
   <section class="tiles" id="acctSummary" style="margin-top:18px; margin-bottom:18px;" aria-label="Account value">
@@ -642,6 +710,21 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
           <button type="reset" class="btn">Clear</button>
         </div>
       </form>
+    </details>
+
+    <!-- Import: a broker's trade-history CSV replayed through the same buy/sell engine (import.js reads it) -->
+    <details class="addform" id="impDetails" style="margin-top:14px;">
+      <summary>Import trades from your broker (CSV)</summary>
+      <div class="imp">
+        <p class="imp-lead">Export your trade history from your broker as a CSV file, then pick it here. P&amp;L reads Robinhood, Schwab, Fidelity, Interactive Brokers and Webull files automatically, and any other broker after a quick column match.</p>
+        <div class="imp-brokers" id="impBrokers">
+          <button type="button" data-b="robinhood" translate="no">Robinhood</button><button type="button" data-b="schwab" translate="no">Schwab</button><button type="button" data-b="fidelity" translate="no">Fidelity</button>
+          <button type="button" data-b="ibkr" translate="no">Interactive Brokers</button><button type="button" data-b="webull" translate="no">Webull</button><button type="button" data-b="other">Other broker</button>
+        </div>
+        <div class="imp-howto" id="impHowto" hidden></div>
+        <label class="btn primary imp-file">Choose CSV file<input type="file" id="impFile" accept=".csv,text/csv,text/plain" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
+        <div id="impOut"></div>
+      </div>
     </details>
   </section>
 
@@ -857,6 +940,13 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
         <button type="button" id="noteModalClose" class="note-modal-x" title="Close">✕</button>
       </div>
       <textarea id="noteModalText" placeholder="Notes for planning this position…"></textarea>
+      <div class="tg" id="tagBox" hidden>
+        <div class="tg-lbl">Setup</div><div class="tg-chips" id="tagSetup"></div>
+        <div class="tg-row"><input type="text" id="tagSetupNew" placeholder="Or type your own setup" maxlength="40"></div>
+        <div class="tg-lbl">Mistakes</div><div class="tg-chips mis" id="tagMis"></div>
+        <div class="tg-lbl">Planned stop (optional)</div>
+        <div class="tg-row"><input type="number" inputmode="decimal" step="any" id="tagStop" placeholder="Stop price, for R-multiples"></div>
+      </div>
       <div class="note-modal-foot"><button type="button" id="noteModalSave" class="btn">Save</button></div>
     </div>
   </div>
@@ -1215,6 +1305,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     renderMonthly(rows);
     renderMonthlyChart(rows, yr);
     renderCalendar(rows, yr);
+    renderStats(rows);
     renderTrades();
     renderHoldings();
     renderContrib();
@@ -1839,7 +1930,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
         '<td class="l"><div class="note-cell">' +
           '<input class="note-input" type="text" data-tnote="' + t.id + '" value="' + esc(tnote) + '" placeholder="＋ note" spellcheck="false">' +
           '<button type="button" class="note-exp" data-texp="' + t.id + '" title="Open note to read / edit">⤢</button>' +
-        '</div></td>' +
+        '</div>' + tagChips(t) + '</td>' +
         '<td class="num"><input class="cost-input" type="number" step="any" min="0" data-tqty="' + t.id +
             '" value="' + (hasQty ? esc(t.qty) : "") + '" placeholder="—"></td>' +
         moneyCell("data-tvalue", t.id, valDisp) +
@@ -2248,6 +2339,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   // so a later Sell reconstructs the full round-trip in All trades.
   // Visible confirmation when something is logged: a brief toast + a green row flash.
   var flashSym = null, _toastT = null;
+  window.showToast = function (m) { showToast(m); };
   function showToast(msg) {
     var el = document.getElementById("toast");
     if (!el) { el = document.createElement("div"); el.id = "toast"; el.setAttribute("role", "status"); el.setAttribute("aria-live", "polite"); document.body.appendChild(el); }
@@ -2343,6 +2435,249 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     try { if (window.__maybeAskReview) window.__maybeAskReview(); } catch (e) {}   // native-only rating ask
   });
 
+  // ---------- trade tags (Nov 2026): setup, mistakes and a planned stop (R-multiples) on every closed trade ----------
+  // Tag values are stored in English and shown in the chosen language (T); a setup typed by the user is kept as typed.
+  var SETUPS = ["Breakout", "Pullback", "Trend", "Gap & go", "Reversal", "Earnings", "Dip buy", "Swing", "Scalp"];
+  var MISTAKES = ["Chased (FOMO)", "No stop", "Moved stop", "Too big", "Sold too early", "Held a loser", "Revenge trade", "Off plan", "Overtrading"];
+  var tagState = { setup: "", mis: [], touched: false };
+  function setupOf(t) { return t.setup || t.strategy || ""; }
+  function F(tpl) { var a = arguments; return T(tpl).replace(/\{(\d)\}/g, function (m, k) { var v = a[+k + 1]; return v == null ? "" : v; }); }   // translated template, then values
+  function B(v) { return "<b>" + v + "</b>"; }
+  function tagChips(t) {
+    var a = []; if (setupOf(t)) a.push('<span class="t-tag">' + esc(T(setupOf(t))) + '</span>');
+    (t.mistakes || []).forEach(function (m) { a.push('<span class="t-tag mis">' + esc(T(m)) + '</span>'); });
+    return a.length ? '<div class="t-tags" translate="no">' + a.join("") + '</div>' : "";
+  }
+  function tagEdit(t) {
+    tagState = { setup: setupOf(t), mis: (t.mistakes || []).slice(), touched: false };
+    var used = {}; trades.forEach(function (x) { var su = setupOf(x); if (su) used[su] = 1; });
+    var list = SETUPS.concat(Object.keys(used).filter(function (u) { return SETUPS.indexOf(u) < 0; }));
+    var sw = document.getElementById("tagSetup"), mw = document.getElementById("tagMis");
+    sw.setAttribute("translate", "no"); mw.setAttribute("translate", "no");
+    function draw() {
+      sw.innerHTML = list.map(function (x) { return '<button type="button" class="' + (tagState.setup === x ? "on" : "") + '" data-v="' + esc(x) + '">' + esc(T(x)) + '</button>'; }).join("");
+      mw.innerHTML = MISTAKES.map(function (x) { return '<button type="button" class="' + (tagState.mis.indexOf(x) >= 0 ? "on" : "") + '" data-v="' + esc(x) + '">' + esc(T(x)) + '</button>'; }).join("");
+    }
+    sw.onclick = function (e) { var b = e.target.closest("button"); if (!b) return; var v = b.getAttribute("data-v"); tagState.setup = tagState.setup === v ? "" : v; tagState.touched = true; document.getElementById("tagSetupNew").value = ""; draw(); };
+    mw.onclick = function (e) { var b = e.target.closest("button"); if (!b) return; var v = b.getAttribute("data-v"), i = tagState.mis.indexOf(v); if (i >= 0) tagState.mis.splice(i, 1); else tagState.mis.push(v); draw(); };
+    document.getElementById("tagSetupNew").value = ""; document.getElementById("tagStop").value = t.stop > 0 ? t.stop : "";
+    draw();
+  }
+
+  // ---------- your trading report (Nov 2026): plain-language insights + key numbers + breakdowns ----------
+  var statTab = "setup";
+  function proLocked() { var demo = false; try { demo = localStorage.getItem("__demo_pnl") === "1"; } catch (e) {} return !!window.__requirePro && !window.__pnlPro && !demo; }
+  window.addEventListener("pnl:pro", function () { render(); });
+  var WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  function wdName(k) { var i = WD.indexOf(k); if (i < 0) return k; try { return new Date(2026, 10, 1 + i).toLocaleDateString(LOC(), { weekday: "long" }).replace(/^./, function (c) { return c.toUpperCase(); }); } catch (e) { return k; } }   // Nov 1 2026 = Sunday
+  var HOLDS = ["Same day", "1-5 days", "6-20 days", "Over 20 days"];
+  function holdBucket(d) { return d == null ? null : d === 0 ? HOLDS[0] : d <= 5 ? HOLDS[1] : d <= 20 ? HOLDS[2] : HOLDS[3]; }
+  function weekdayOf(r) { var d = new Date(r.t.closeDate + "T12:00:00"); return isNaN(d) ? null : WD[d.getDay()]; }
+  function rMultiple(t, c) {
+    var st = Number(t.stop), en = Number(t.entry), q = Number(t.qty);
+    if (!(st > 0) || !(en > 0) || !(q > 0) || c.pnl == null) return null;
+    var risk = Math.abs(en - st) * q; return risk > 0 ? c.pnl / risk : null;
+  }
+  function groupBy(rows, keyFn) {
+    var g = {};
+    rows.forEach(function (r) { var ks = keyFn(r); if (ks == null) return; (Array.isArray(ks) ? ks : [ks]).forEach(function (k) { if (!k) return; var x = g[k] || (g[k] = { k: k, n: 0, w: 0, net: 0 }); x.n++; if (r.c.pnl > 0) x.w++; x.net += r.c.pnl; }); });
+    return Object.keys(g).map(function (k) { return g[k]; });
+  }
+  function statsOf(rows) {
+    var n = rows.length, wins = rows.filter(function (r) { return r.c.pnl > 0; }), losses = rows.filter(function (r) { return r.c.pnl < 0; });
+    var sum = function (a) { return a.reduce(function (s2, r) { return s2 + r.c.pnl; }, 0); };
+    var gw = sum(wins), gl = -sum(losses), net = gw - gl;
+    var eq = 0, pk = 0, dd = 0; rows.forEach(function (r) { eq += r.c.pnl; pk = Math.max(pk, eq); dd = Math.max(dd, pk - eq); });
+    var rs = rows.map(function (r) { return rMultiple(r.t, r.c); }).filter(function (x) { return x != null; });
+    return { n: n, w: wins.length, l: losses.length, net: net, avgW: wins.length ? gw / wins.length : 0, avgL: losses.length ? gl / losses.length : 0,
+      pf: gl ? gw / gl : (gw > 0 ? Infinity : 0), exp: n ? net / n : 0, dd: dd, rN: rs.length, avgR: rs.length ? rs.reduce(function (a, b) { return a + b; }, 0) / rs.length : null };
+  }
+  function insights(rows, S) {
+    var out = [];
+    out.push(["", F("You closed {0} trades: {1} winners, profit factor {2}, and on average each trade made {3}.", B(S.n), B(Math.round(S.w / S.n * 100) + "%"), B(S.pf === Infinity ? "∞" : S.pf.toFixed(2)), '<b class="' + cls(S.exp) + '">' + signed(S.exp) + '</b>')]);
+    if (S.w && S.l) {
+      var ratio = S.avgW / S.avgL;
+      if (ratio < 1) out.push(["bad", F("Your average loss ({0}) is bigger than your average win ({1}). Cutting losers sooner is your biggest lever.", B(money(S.avgL)), B(money(S.avgW)))]);
+      else out.push(["good", F("Your average win ({0}) is {1} your average loss ({2}). Keep letting winners run.", B(money(S.avgW)), B(ratio.toFixed(1) + "×"), B(money(S.avgL)))]);
+    }
+    var wd = groupBy(rows, weekdayOf).filter(function (x) { return x.n >= 2; }).sort(function (a, b) { return b.net - a.net; });
+    if (wd.length >= 3) { var lo = wd[wd.length - 1]; out.push([lo.net < 0 ? "bad" : "", F("Best day: {0} ({1}). Weakest: {2} ({3}).", B(wdName(wd[0].k)), signed(wd[0].net), B(wdName(lo.k)), signed(lo.net))]); }
+    var sy = groupBy(rows, function (r) { return symOf(r.t.symbol); }).sort(function (a, b) { return a.net - b.net; });
+    if (sy.length >= 2 && sy[0].net < 0) { var top = sy[sy.length - 1];
+      out.push(["bad", (sy[0].n === 1 ? F("{0} cost you the most: {1} on 1 trade. Top earner: {2} ({3}).", B(esc(sy[0].k)), signed(sy[0].net), B(esc(top.k)), signed(top.net)) : F("{0} cost you the most: {1} over {2} trades. Top earner: {3} ({4}).", B(esc(sy[0].k)), signed(sy[0].net), sy[0].n, B(esc(top.k)), signed(top.net)))]); }
+    var hb = groupBy(rows, function (r) { return holdBucket(r.c.days); }).filter(function (x) { return x.n >= 3; }).sort(function (a, b) { return b.net / b.n - a.net / a.n; });
+    if (hb.length >= 2) out.push(["", F("Your best holding time: {0}, {1} per trade on average.", B(esc(T(hb[0].k))), signed(hb[0].net / hb[0].n))]);
+    var su = groupBy(rows, function (r) { return setupOf(r.t); }).filter(function (x) { return x.n >= 2; }).sort(function (a, b) { return b.net - a.net; });
+    if (su.length) out.push(["good", F("Your best setup: {0}, {1} over {2} trades ({3} winners).", B(esc(T(su[0].k))), signed(su[0].net), su[0].n, Math.round(su[0].w / su[0].n * 100) + "%")]);
+    var mi = groupBy(rows, function (r) { return r.t.mistakes && r.t.mistakes.length ? r.t.mistakes : null; }).sort(function (a, b) { return a.net - b.net; });
+    if (mi.length) { var cost = rows.filter(function (r) { return r.t.mistakes && r.t.mistakes.length; }).reduce(function (a, r) { return a + r.c.pnl; }, 0);
+      out.push(["bad", F("Trades with a mistake tag made {0} in total. The costliest: {1} ({2}).", B(signed(cost)), B(esc(T(mi[0].k))), signed(mi[0].net))]); }
+    return out;
+  }
+  var KPI = ["Avg win", "Avg loss", "Win / loss size", "Expectancy", "Max drawdown", "Avg R"];
+  function renderStats(rows) {
+    var body = document.getElementById("statsBody"), sub = document.getElementById("statsSub"); if (!body) return;
+    body.setAttribute("translate", "no");
+    var yr = selectedYear(); sub.textContent = (yr === "all" ? T("all years") : yr) + " · " + T("closed trades");
+    if (rows.length < 5) { body.innerHTML = '<div class="st-empty">' + T("Log or import at least <b>5 closed trades</b> and P&amp;L shows what your trading is telling you: where you make money, where you lose it, and which setups and mistakes matter most.") + '</div>'; return; }
+    var S = statsOf(rows), ins = insights(rows, S);
+    var li = function (x) { return '<li class="' + x[0] + '"><i></i><span>' + x[1] + '</span></li>'; };
+    if (proLocked()) {                       // free app users: the first insight, then the rest behind P&L Pro
+      body.innerHTML = '<ul class="st-ins">' + li(ins[0]) + '</ul>' +
+        '<div class="st-lock"><div class="st-lock-blur" aria-hidden="true"><div class="st-kpis">' + KPI.map(function (k) { return '<div class="st-kpi"><small>' + esc(T(k)) + '</small><b>$•••</b></div>'; }).join("") + '</div></div>' +
+        '<div class="st-lock-cta"><b>' + T("See where you make and lose money") + '</b><span>' + T("Best and worst days, costliest stocks, your best setup and what your mistakes cost you.") + '</span><button type="button" class="btn primary" id="stUnlock">' + T("Unlock your trading report") + '</button></div></div>';
+      document.getElementById("stUnlock").addEventListener("click", function () { window.__requirePro("report", render); });
+      return;
+    }
+    var kv = [money(S.avgW), S.avgL ? "−" + money(S.avgL) : money(0), S.avgL ? (S.avgW / S.avgL).toFixed(2) + "×" : "—", signed(S.exp), S.dd ? "−" + money(S.dd) : money(0), S.avgR == null ? "—" : (S.avgR >= 0 ? "+" : "") + S.avgR.toFixed(2) + "R"];
+    var kc = ["pos", S.avgL ? "neg" : "", "", cls(S.exp), S.dd ? "neg" : "", S.avgR == null ? "" : cls(S.avgR)];
+    var tabs = [["setup", "Setup"], ["mistake", "Mistakes"], ["weekday", "Weekday"], ["hold", "Hold time"], ["symbol", "Symbol"]];
+    var label = function (k) { return statTab === "weekday" ? wdName(k) : statTab === "symbol" ? k : T(k); };
+    var grp = {
+      setup: function () { return groupBy(rows, function (r) { return setupOf(r.t) || "Untagged"; }).sort(function (a, b) { return b.net - a.net; }); },
+      mistake: function () { return groupBy(rows, function (r) { return r.t.mistakes && r.t.mistakes.length ? r.t.mistakes : "No mistake tagged"; }).sort(function (a, b) { return a.net - b.net; }); },
+      weekday: function () { return groupBy(rows, weekdayOf).sort(function (a, b) { return WD.indexOf(a.k) - WD.indexOf(b.k); }); },
+      hold: function () { return groupBy(rows, function (r) { return holdBucket(r.c.days); }).sort(function (a, b) { return HOLDS.indexOf(a.k) - HOLDS.indexOf(b.k); }); },
+      symbol: function () { return groupBy(rows, function (r) { return symOf(r.t.symbol); }).sort(function (a, b) { return Math.abs(b.net) - Math.abs(a.net); }).slice(0, 10); }
+    }[statTab]();
+    var mx = Math.max.apply(null, grp.map(function (x) { return Math.abs(x.net); }).concat([1]));
+    var table = '<div class="st-row h"><span>' + esc(T(tabs.filter(function (x) { return x[0] === statTab; })[0][1])) + '</span><span class="n">' + T("Trades") + '</span><span class="w">' + T("Win") + '</span><span>' + T("Net P&amp;L") + '</span></div>' +
+      grp.map(function (x) { var wpx = Math.max(3, Math.round(Math.abs(x.net) / mx * 100));
+        return '<div class="st-row"><span class="nm">' + esc(label(x.k)) + '</span><span class="n">' + x.n + '</span><span class="w">' + Math.round(x.w / x.n * 100) + '%</span><span class="st-bar"><span style="width:' + (wpx * .42).toFixed(1) + '%;background:' + (x.net >= 0 ? "var(--gain)" : "var(--loss)") + '"></span><em class="' + cls(x.net) + '">' + signed(x.net) + '</em></span></div>'; }).join("");
+    var tagHint = (statTab === "setup" || statTab === "mistake") && !rows.some(function (r) { return setupOf(r.t) || (r.t.mistakes && r.t.mistakes.length); })
+      ? '<div class="st-empty">' + T("Tag your trades to see this: tap <b>⤢</b> on any trade in All trades and pick its setup and any mistakes.") + '</div>' : "";
+    body.innerHTML = '<ul class="st-ins">' + ins.map(li).join("") + '</ul>' +
+      '<div class="st-kpis">' + KPI.map(function (k, i) { return '<div class="st-kpi"><small>' + esc(T(k)) + '</small><b class="' + kc[i] + '">' + kv[i] + '</b></div>'; }).join("") + '</div>' +
+      '<div class="st-tabs" id="stTabs">' + tabs.map(function (x) { return '<button type="button" data-t="' + x[0] + '" class="' + (x[0] === statTab ? "on" : "") + '">' + esc(T(x[1])) + '</button>'; }).join("") + '</div>' +
+      table + tagHint;
+    Array.prototype.forEach.call(document.querySelectorAll("#stTabs button"), function (b) { b.addEventListener("click", function () { statTab = b.getAttribute("data-t"); renderStats(rows); }); });
+  }
+
+  // ---------- broker CSV import (Nov 2026) ----------
+  // import.js turns a broker CSV into fills; here they replay oldest-first through the same engine as the Bought / Sold
+  // forms: buys become holdings + lots (commission folded into the lot price), sells close shares with the chosen cost
+  // basis and land in All trades. Every imported fill's key is kept (synced), so importing a newer export skips the old rows.
+  var IMPKEY = "ledger.imported.v1";
+  var imported = (function () { try { return JSON.parse(localStorage.getItem(IMPKEY)) || {}; } catch (e) { return {}; } })();
+  function persistImported() { try { localStorage.setItem(IMPKEY, JSON.stringify(imported)); } catch (e) {} }
+  var IMP_HOW = {
+    robinhood: "In the Robinhood app: <b>Account → Menu → Reports and statements → Reports</b>. Generate an <b>Account activity</b> report for the dates you want and download the CSV.",
+    schwab: "On schwab.com: <b>Accounts → History</b>, pick the account and date range, then <b>Export</b> (CSV).",
+    fidelity: "On fidelity.com: <b>Accounts &amp; Trade → Activity &amp; Orders</b>, pick one account and the time period, then <b>Download</b> (CSV).",
+    ibkr: "In the IBKR portal: <b>Performance &amp; Reports → Flex Queries</b>. Create a <b>Trades</b> query with Symbol, Date/Time, Buy/Sell, Quantity, TradePrice, IBCommission and Asset Class, run it and save it as CSV.",
+    webull: "In Webull desktop or web: <b>Orders → Order history</b>, then export the orders as CSV. Only filled orders are imported.",
+    other: "Any broker works if the file has a date, symbol, buy/sell, quantity and price column. P&amp;L asks you which column is which. Or use these headers: <b>Date, Time, Symbol, Side, Qty, Price, Fees</b>."
+  };
+  var impRead = null, impMethod = "avg", impText = "";
+  (function wireImport() {
+    var bw = document.getElementById("impBrokers"), how = document.getElementById("impHowto"), file = document.getElementById("impFile"), out = document.getElementById("impOut");
+    if (!bw || !file || !window.PNLImport) return;
+    how.setAttribute("translate", "no"); out.setAttribute("translate", "no");
+    Array.prototype.forEach.call(bw.querySelectorAll("button"), function (b) {
+      b.addEventListener("click", function () {
+        var on = !b.classList.contains("on");
+        Array.prototype.forEach.call(bw.querySelectorAll("button"), function (x) { x.classList.remove("on"); });
+        if (on) { b.classList.add("on"); how.innerHTML = T(IMP_HOW[b.getAttribute("data-b")]); how.hidden = false; } else how.hidden = true;
+      });
+    });
+    file.addEventListener("click", function (e) {
+      if (!proLocked()) return;
+      e.preventDefault(); window.__requirePro("import", function () { file.click(); });
+    });
+    file.addEventListener("change", function () {
+      var f = file.files && file.files[0]; if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function () { impText = String(rd.result || ""); impShow(PNLImport.read(impText)); file.value = ""; };
+      rd.onerror = function () { showToast(T("Couldn’t read that file")); };
+      rd.readAsText(f);
+    });
+  })();
+  function impShow(r) {
+    var out = document.getElementById("impOut"); impRead = r;
+    if (!r || r.error) { out.innerHTML = '<div class="imp-box"><div class="imp-warn">' + T("That file is empty or isn’t a CSV.") + '</div></div>'; return; }
+    if (r.needMapping) { impMapUI(r); return; }
+    var fills = r.fills, fresh = fills.filter(function (f) { return !imported[f.key]; }), dup = fills.length - fresh.length;
+    var sk = r.skipped, skipParts = [sk.option ? F("options: {0}", sk.option) : "", sk.short ? F("short sales: {0}", sk.short) : "", sk.bad ? F("unreadable rows: {0}", sk.bad) : ""].filter(Boolean).join(", ");
+    var syms = {}; fresh.forEach(function (f) { syms[f.symbol] = 1; });
+    var overlap = Object.keys(syms).filter(function (sym) { return holdings.some(function (h) { return symOf(h.symbol) === sym; }) || trades.some(function (t) { return symOf(t.symbol) === sym && !t.imported; }); });
+    var nb = fresh.filter(function (f) { return f.side === "buy"; }).length, ns = fresh.length - nb;
+    var rows = fresh.slice(-6).reverse().map(function (f) { var dd = f.date; try { dd = new Date(f.date + "T12:00:00").toLocaleDateString(LOC(), { day: "2-digit", month: "2-digit", year: "2-digit" }); } catch (e) {}
+      return '<tr><td>' + esc(dd) + '</td><td>' + esc(f.symbol) + '</td><td class="' + f.side + '">' + T(f.side === "buy" ? "Buy" : "Sell") + '</td><td>' + f.qty + '</td><td>' + money(f.price, 2) + '</td></tr>'; }).join("");
+    out.innerHTML = '<div class="imp-box">' +
+      '<div class="imp-sum"><b>' + esc(T(r.broker)) + '</b> · ' + F("New fills: {0} (buys: {1}, sells: {2})", fresh.length, nb, ns) + '</div>' +
+      (dup ? '<div class="imp-note">' + F("Already imported before: {0}. They will be skipped.", dup) + '</div>' : '') +
+      (skipParts ? '<div class="imp-note">' + F("Not imported ({0}). Add those by hand if you need them.", skipParts) + '</div>' : '') +
+      (overlap.length ? '<div class="imp-warn">' + F("You already logged {0} by hand. Importing the same trades again would count them twice.", esc(overlap.slice(0, 6).join(", ")) + (overlap.length > 6 ? "…" : "")) + '</div>' : '') +
+      (fresh.length ? '<div class="imp-scroll"><table><thead><tr><th>' + T("Date") + '</th><th>' + T("Symbol") + '</th><th>' + T("Side") + '</th><th>' + T("Qty") + '</th><th>' + T("Price") + '</th></tr></thead><tbody>' + rows + '</tbody></table></div>' + (fresh.length > 6 ? '<div class="imp-note">' + T("Latest 6 shown.") + '</div>' : '') : '') +
+      (fresh.length ? '<div>' + T("Cost basis for sells:") + ' <span class="imp-seg" id="impSeg"><button type="button" data-m="avg">' + T("Average") + '</button><button type="button" data-m="fifo">FIFO</button></span></div>' +
+        '<label class="imp-note" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="impCash"> ' + T("Also update my cash balance with these buys and sells") + '</label>' +
+        '<div class="form-actions"><button type="button" class="btn primary" id="impGo">' + F("Import {0}", fresh.length) + '</button><button type="button" class="btn" id="impCancel">' + T("Cancel") + '</button></div>'
+        : '<div class="imp-note">' + T("Nothing new to import.") + '</div><div class="form-actions"><button type="button" class="btn" id="impCancel">' + T("Close") + '</button></div>') +
+      '</div>';
+    var seg = document.getElementById("impSeg");
+    if (seg) Array.prototype.forEach.call(seg.querySelectorAll("button"), function (b) {
+      b.classList.toggle("on", b.getAttribute("data-m") === impMethod);
+      b.addEventListener("click", function () { impMethod = b.getAttribute("data-m"); Array.prototype.forEach.call(seg.querySelectorAll("button"), function (x) { x.classList.toggle("on", x === b); }); });
+    });
+    var go = document.getElementById("impGo"); if (go) go.addEventListener("click", function () { impRun(fresh, r.broker, impMethod, document.getElementById("impCash").checked); });
+    document.getElementById("impCancel").addEventListener("click", function () { out.innerHTML = ""; impRead = null; });
+  }
+  function impMapUI(r) {
+    var out = document.getElementById("impOut"), H = r.header;
+    var Fs = [["date", "Date", 1], ["time", "Time", 0], ["symbol", "Symbol", 1], ["side", "Buy / sell", 1], ["qty", "Quantity", 1], ["price", "Price", 1], ["fees", "Fees", 0]];
+    var opt = function (req) { return (req ? '' : '<option value="-1">' + T("(none)") + '</option>') + H.map(function (h, i) { return '<option value="' + i + '">' + esc(h || F("Column {0}", i + 1)) + '</option>'; }).join(""); };
+    out.innerHTML = '<div class="imp-box"><div class="imp-sum"><b>' + T("Match your columns") + '</b></div><div class="imp-note">' + T("P&amp;L didn’t recognise this broker. Tell it which column is which, once.") + '</div>' +
+      '<div class="imp-map">' + Fs.map(function (f) { return '<label>' + T(f[1]) + '<select data-f="' + f[0] + '">' + opt(f[2]) + '</select></label>'; }).join("") + '</div>' +
+      '<div class="form-actions"><button type="button" class="btn primary" id="impMapGo">' + T("Read the file") + '</button><button type="button" class="btn" id="impCancel">' + T("Cancel") + '</button></div></div>';
+    var sels = out.querySelectorAll("select[data-f]");
+    Array.prototype.forEach.call(sels, function (sel) {        // best guess from the header names
+      var f = sel.getAttribute("data-f"), re = { date: /date|time|when/i, time: /^time$/i, symbol: /sym|tick|instr/i, side: /side|action|b\/s|buy|type/i, qty: /qty|quant|share/i, price: /price|fill/i, fees: /fee|comm/i }[f];
+      var i = H.findIndex(function (h) { return re.test(h); }); if (i >= 0) sel.value = String(i);
+    });
+    document.getElementById("impMapGo").addEventListener("click", function () {
+      var m = {}; Array.prototype.forEach.call(sels, function (s2) { m[s2.getAttribute("data-f")] = Number(s2.value); });
+      var r2 = PNLImport.read(impText, { mapping: m, headerRow: 0 }); r2.broker = "Your broker"; impShow(r2);
+    });
+    document.getElementById("impCancel").addEventListener("click", function () { out.innerHTML = ""; });
+  }
+  function impRun(fills, broker, method, withCash) {
+    var nb = 0, ns = 0, miss = {}, cashDelta = 0;
+    fills.forEach(function (f) {
+      var sym = f.symbol;
+      if (f.side === "buy") {
+        var px = f.price + (f.fees ? f.fees / f.qty : 0);                     // commission is part of the cost basis
+        upsertHolding(sym, f.qty, px, "");
+        addLot(sym, f.date, f.qty, px);
+        var h = holdings.filter(function (z) { return symOf(z.symbol) === sym; })[0];
+        if (h && !h.openDate) { h.openDate = f.date; persistH(); }
+        cashDelta -= px * f.qty; nb++;
+      } else {
+        var hh = holdings.filter(function (z) { return symOf(z.symbol) === sym; })[0];
+        if (!hh || Number(hh.shares) + LOT_EPS < f.qty) { miss[sym] = (miss[sym] || 0) + 1; return; }   // bought before this file starts
+        var plan = planSale(sym, f.qty, method, []);
+        if (plan.basis === "" || plan.short > LOT_EPS) { miss[sym] = (miss[sym] || 0) + 1; return; }
+        applySale(plan.take);
+        trades.push({ id: uid(), openDate: hh.openDate || (plan.take[0] && plan.take[0].date) || "", closeDate: f.date,
+          symbol: sym, direction: "long", qty: f.qty, entry: lotRound(plan.basis), exit: f.price, fees: f.fees || 0,
+          strategy: "", notes: "", basisMethod: method, lotsUsed: plan.take, imported: broker });
+        upsertHolding(sym, -f.qty);
+        cashDelta += f.price * f.qty - (f.fees || 0); ns++;
+      }
+      imported[f.key] = 1;
+    });
+    persist(); persistImported();
+    if (withCash) { cash += cashDelta; persistCash(); }
+    render();
+    var missSyms = Object.keys(miss), missN = missSyms.reduce(function (a, k) { return a + miss[k]; }, 0), out = document.getElementById("impOut");
+    out.innerHTML = '<div class="imp-box"><div class="imp-sum"><b>✓ ' + F("Imported: {0}", nb + ns) + '</b> · ' + F("buys: {0}, sells: {1}", nb, ns) + '</div>' +
+      (missN ? '<div class="imp-warn">' + F("Sells skipped: {0} ({1}). The shares were bought before this file starts. Add those positions under Current holdings with their buy price, then import the same file again. Only the skipped rows will be added.", missN, esc(missSyms.slice(0, 6).join(", "))) + '</div>' : '') +
+      '<div class="form-actions"><button type="button" class="btn primary" id="impReport">' + T("See your trading report") + '</button><button type="button" class="btn" id="impDone">' + T("Done") + '</button></div></div>';
+    document.getElementById("impReport").addEventListener("click", function () { out.innerHTML = ""; var c = document.getElementById("statsCard"); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); });
+    document.getElementById("impDone").addEventListener("click", function () { out.innerHTML = ""; });
+    showToast("✓ " + F("Imported: {0}", nb + ns) + " · " + T(broker));
+    if (window.__afterImport) try { window.__afterImport(); } catch (e) {}
+  }
+
   // ---------- add realized-P&L entry ----------
   // Sign toggle: tap flips gain (+, green) ↔ loss (−, red). Frees losses from needing a
   // minus key, which many mobile numeric keypads don't show.
@@ -2408,14 +2743,21 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     noteModalRef = { obj: obj, isTrade: !!t };
     document.getElementById("noteModalTitle").textContent = (obj.symbol || (t ? "Trade" : "Position")) + " · note";
     document.getElementById("noteModalText").value = t ? [t.strategy, t.notes].filter(Boolean).join(" · ") : (obj.note || "");
+    document.getElementById("tagBox").hidden = !t;
+    if (t) tagEdit(t);
     document.getElementById("noteModal").hidden = false;
-    document.getElementById("noteModalText").focus();
+    if (!t) document.getElementById("noteModalText").focus();
   }
   function closeNoteModal(save) {
     if (save && noteModalRef) {
       var v = document.getElementById("noteModalText").value;
       if (noteModalRef.isTrade) {
-        noteModalRef.obj.notes = v; noteModalRef.obj.strategy = "";
+        var o = noteModalRef.obj, keepSetup = o.setup || o.strategy || "";
+        o.notes = v; o.strategy = "";
+        var ns = document.getElementById("tagSetupNew").value.trim();
+        o.setup = ns || tagState.setup || (tagState.touched ? "" : keepSetup);
+        o.mistakes = tagState.mis.slice();
+        var sp = parseFloat(document.getElementById("tagStop").value); o.stop = sp > 0 ? sp : "";
         persist();
       }
       else { noteModalRef.obj.note = v; persistH(); }
