@@ -94,7 +94,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     --violet:#7E6A9E; --violet-soft:#ECE7F2;
     --blue:#5B7FA6;
     --shadow:0 1px 2px rgba(60,45,25,.03), 0 4px 14px rgba(60,45,25,.035);
-    --radius:22px; --eq-c:#3F9147;
+    --radius:22px; --eq-c:#6DD5C0;
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme]) {
@@ -108,7 +108,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       --violet:#7E6A9E; --violet-soft:#ECE7F2;
       --blue:#5B7FA6;
       --shadow:0 1px 2px rgba(60,45,25,.03), 0 4px 14px rgba(60,45,25,.035);
-      --radius:22px; --eq-c:#3F9147;
+      --radius:22px; --eq-c:#6DD5C0;
     }
   }
   /* ---------- Light mode "Sand & Honey" (Nov 20 2026): warm stone page, soft sand cards, honey labels, black pill buttons,
@@ -123,9 +123,9 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   :root[data-theme="light"] select, :root[data-theme="light"] .btn, :root[data-theme="light"] .acct { background-color: #FCFBF8; border-color: #E0DBD2; border-radius: 999px; }
   :root[data-theme="light"] .btn.primary { background: #6DD5C0; border-color: #6DD5C0; color: #063A30; }
   :root[data-theme="light"] .btn.primary:hover { background: #5FCDB7; }
-  :root[data-theme="light"] .eq-line { stroke: #3F9147; stroke-width: 2.6; }
+  :root[data-theme="light"] .eq-line { stroke: #6DD5C0; stroke-width: 2.6; }
   :root[data-theme="light"] .eq-area { fill: url(#eqg); opacity: 1; }
-  :root[data-theme="light"] .eq-dot { fill: #3F9147; stroke: #FCFBF8; stroke-width: 2; }
+  :root[data-theme="light"] .eq-dot { fill: #6DD5C0; stroke: #FCFBF8; stroke-width: 2; }
   :root[data-theme="light"] .axis-text { fill: #8B8377; }
   :root[data-theme="light"] .grid-line { stroke: #ECE8E1; }
   :root[data-theme="light"] .bar { rx: 4px; ry: 4px; }
@@ -139,6 +139,11 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   :root[data-theme="light"] .donut-total { font-family: var(--font-ui); font-weight: 600; letter-spacing: -.8px; }
   :root[data-theme="light"] .w-add button { background: #3F9147; color: #FFFFFF; }
   :root[data-theme="light"] .bm-btn.active, :root[data-theme="light"] .cal-day.selected, :root[data-theme="light"] .cal-day.selected:hover { background: #6DD5C0; border-color: #6DD5C0; color: #063A30; }
+  :root[data-theme="light"] .gl-line, :root[data-theme="light"] .gl-area-gain, :root[data-theme="light"] .gl-area-loss { display: none; }
+  :root[data-theme="light"] .trades-chart { --gl-c: var(--eq-c); --gl-o: .30; }
+  :root[data-theme="light"] .gl-full { fill: none; stroke: var(--eq-c); stroke-width: 2.6; stroke-linejoin: round; stroke-linecap: round; }
+  :root[data-theme="light"] .trades-chart .gl-dot { fill: var(--eq-c); stroke: #FCFBF8; stroke-width: 2; }
+  :root[data-theme="light"] .chart { --eq-c: #6DD5C0; }
   :root[data-theme="light"] .tile .value, :root[data-theme="light"] .pc-sum b, :root[data-theme="light"] .pc-c .v { font-family: var(--font-ui); font-variant-numeric: tabular-nums; }
   :root[data-theme="light"] .tile .value { font-weight: 600; letter-spacing: -.8px; font-size: 26px; }
   :root[data-theme="light"] #tiles .tile:first-child { background: #2A241E; border-color: #2A241E; box-shadow: 0 10px 26px rgba(42,36,30,.22); }
@@ -158,9 +163,9 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     :root:not([data-theme]) select, :root:not([data-theme]) .btn, :root:not([data-theme]) .acct { background-color: #FCFBF8; border-color: #E0DBD2; border-radius: 999px; }
     :root:not([data-theme]) .btn.primary { background: #6DD5C0; border-color: #6DD5C0; color: #063A30; }
     :root:not([data-theme]) .btn.primary:hover { background: #5FCDB7; }
-    :root:not([data-theme]) .eq-line { stroke: #3F9147; stroke-width: 2.6; }
+    :root:not([data-theme]) .eq-line { stroke: #6DD5C0; stroke-width: 2.6; }
     :root:not([data-theme]) .eq-area { fill: url(#eqg); opacity: 1; }
-    :root:not([data-theme]) .eq-dot { fill: #3F9147; stroke: #FCFBF8; stroke-width: 2; }
+    :root:not([data-theme]) .eq-dot { fill: #6DD5C0; stroke: #FCFBF8; stroke-width: 2; }
     :root:not([data-theme]) .axis-text { fill: #8B8377; }
     :root:not([data-theme]) .grid-line { stroke: #ECE8E1; }
     :root:not([data-theme]) .bar { rx: 4px; ry: 4px; }
@@ -174,6 +179,11 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     :root:not([data-theme]) .donut-total { font-family: var(--font-ui); font-weight: 600; letter-spacing: -.8px; }
     :root:not([data-theme]) .w-add button { background: #3F9147; color: #FFFFFF; }
     :root:not([data-theme]) .bm-btn.active, :root:not([data-theme]) .cal-day.selected, :root:not([data-theme]) .cal-day.selected:hover { background: #6DD5C0; border-color: #6DD5C0; color: #063A30; }
+    :root:not([data-theme]) .gl-line, :root:not([data-theme]) .gl-area-gain, :root:not([data-theme]) .gl-area-loss { display: none; }
+    :root:not([data-theme]) .trades-chart { --gl-c: var(--eq-c); --gl-o: .30; }
+    :root:not([data-theme]) .gl-full { fill: none; stroke: var(--eq-c); stroke-width: 2.6; stroke-linejoin: round; stroke-linecap: round; }
+    :root:not([data-theme]) .trades-chart .gl-dot { fill: var(--eq-c); stroke: #FCFBF8; stroke-width: 2; }
+    :root:not([data-theme]) .chart { --eq-c: #6DD5C0; }
     :root:not([data-theme]) .tile .value, :root:not([data-theme]) .pc-sum b, :root:not([data-theme]) .pc-c .v { font-family: var(--font-ui); font-variant-numeric: tabular-nums; }
     :root:not([data-theme]) .tile .value { font-weight: 600; letter-spacing: -.8px; font-size: 26px; }
     :root:not([data-theme]) #tiles .tile:first-child { background: #2A241E; border-color: #2A241E; box-shadow: 0 10px 26px rgba(42,36,30,.22); }
@@ -286,7 +296,8 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   /* svg chart styling */
   .grid-line { stroke: var(--border); stroke-width: 1; }
   .axis-text { fill: var(--ink-faint); font-size: 10px; font-family: var(--font-mono); }
-  .eq-area { fill: var(--accent); opacity: .14; }
+  .eq-area { fill: url(#eqg); opacity: 1; }          /* fading gradient, same as the All trades chart */
+  .chart { --eq-c: var(--accent); }
   .eq-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
   .eq-dot { fill: var(--accent); }
   .zero-line { stroke: var(--ink-faint); stroke-width: 1; stroke-dasharray: 3 3; opacity: .55; }
@@ -487,6 +498,12 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   .gl-area-gain { fill: var(--accent); opacity: .14; }
   .gl-area-loss { fill: var(--accent); opacity: .14; }
   .gl-dot { fill: var(--gain); }                       /* always green — stay positive */
+  /* All trades: one continuous line + fill, the same look as the Equity curve (dark: cyan; light: see the Sand & Honey block). */
+  .gl-line, .gl-area-gain, .gl-area-loss { display: none; }
+  .gl-full { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .trades-chart { --gl-c: var(--accent); --gl-o: .34; }
+  .gl-full-area { fill: url(#glg); }
+  .trades-chart .gl-dot { fill: var(--accent); }
   /* Right-side $ labels rendered as fixed-size HTML (same 10px mono as .axis-text) so they never scale up. */
   .gl-labels { position: absolute; top: 0; right: 0; width: 50px; height: 100%; pointer-events: none; }
   .gl-labels span { position: absolute; right: 4px; transform: translateY(-50%); white-space: nowrap;
@@ -1958,6 +1975,9 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     var gLine = "M" + gPts.join(" L"), lLine = "M" + lPts.join(" L");
     var gArea = "M" + x(0).toFixed(1) + " " + z.toFixed(1) + " L" + gPts.join(" L") + " L" + x(n - 1).toFixed(1) + " " + z.toFixed(1) + " Z";
     var lArea = "M" + x(0).toFixed(1) + " " + z.toFixed(1) + " L" + lPts.join(" L") + " L" + x(n - 1).toFixed(1) + " " + z.toFixed(1) + " Z";
+    var fPts = pts.map(function (v, i) { return x(i).toFixed(1) + " " + y(v).toFixed(1); });   // light mode: one line like the equity curve
+    var fLine = "M" + fPts.join(" L");
+    var fArea = "M" + x(0).toFixed(1) + " " + z.toFixed(1) + " L" + fPts.join(" L") + " L" + x(n - 1).toFixed(1) + " " + z.toFixed(1) + " Z";
 
     var ticks = 4, grid = "", labels = "";
     for (var g = 0; g <= ticks; g++) {
@@ -1975,6 +1995,9 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
         '<path class="gl-area-gain" d="' + gArea + '"/>' +
         '<path class="gl-line gl-loss"' + nsw + ' d="' + lLine + '"/>' +
         '<path class="gl-line gl-gain"' + nsw + ' d="' + gLine + '"/>' +
+        '<defs><linearGradient id="glg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--gl-c, #2FD3E1);stop-opacity:var(--gl-o, .34)"/><stop offset="1" style="stop-color:var(--gl-c, #2FD3E1);stop-opacity:.02"/></linearGradient></defs>' +
+        '<path class="gl-full-area" d="' + fArea + '"/>' +
+        '<path class="gl-full"' + nsw + ' d="' + fLine + '"/>' +
         '<circle class="gl-dot" cx="' + x(n - 1).toFixed(1) + '" cy="' + y(lastV).toFixed(1) + '" r="3.2"/>' +
       '</svg>' +
       '<div class="gl-labels">' + labels + '</div>';
