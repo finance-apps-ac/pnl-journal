@@ -120,7 +120,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   :root[data-theme="light"] select, :root[data-theme="light"] .btn, :root[data-theme="light"] .acct { background-color: #FCFBF8; border-color: #E0DBD2; }
   :root[data-theme="light"] .btn.primary { background: #6DD5C0; border-color: #6DD5C0; color: #063A30; }
   :root[data-theme="light"] .btn.primary:hover { background: #5FCDB7; }
-  :root[data-theme="light"] .eq-line { stroke: #6DD5C0; stroke-width: 2.6; }
+  :root[data-theme="light"] .eq-line { stroke: #6DD5C0; stroke-width: 1; }
   :root[data-theme="light"] .eq-area { fill: url(#eqg); opacity: 1; }
   :root[data-theme="light"] .eq-dot { fill: #6DD5C0; stroke: #FCFBF8; stroke-width: 2; }
   :root[data-theme="light"] .axis-text { fill: #8B8377; }
@@ -137,7 +137,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   :root[data-theme="light"] .bm-btn.active, :root[data-theme="light"] .cal-day.selected, :root[data-theme="light"] .cal-day.selected:hover { background: #6DD5C0; border-color: #6DD5C0; color: #063A30; }
   :root[data-theme="light"] .gl-line, :root[data-theme="light"] .gl-area-gain, :root[data-theme="light"] .gl-area-loss { display: none; }
   :root[data-theme="light"] .trades-chart { --gl-c: var(--eq-c); --gl-o: .30; }
-  :root[data-theme="light"] .gl-full { fill: none; stroke: var(--eq-c); stroke-width: 2.6; stroke-linejoin: round; stroke-linecap: round; }
+  :root[data-theme="light"] .gl-full { fill: none; stroke: var(--eq-c); stroke-width: 1; stroke-linejoin: round; stroke-linecap: round; }
   :root[data-theme="light"] .trades-chart .gl-dot { fill: var(--eq-c); stroke: #FCFBF8; stroke-width: 2; }
   :root[data-theme="light"] .chart { --eq-c: #6DD5C0; }
   @media (prefers-color-scheme: light) {
@@ -148,7 +148,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     :root:not([data-theme]) select, :root:not([data-theme]) .btn, :root:not([data-theme]) .acct { background-color: #FCFBF8; border-color: #E0DBD2; }
     :root:not([data-theme]) .btn.primary { background: #6DD5C0; border-color: #6DD5C0; color: #063A30; }
     :root:not([data-theme]) .btn.primary:hover { background: #5FCDB7; }
-    :root:not([data-theme]) .eq-line { stroke: #6DD5C0; stroke-width: 2.6; }
+    :root:not([data-theme]) .eq-line { stroke: #6DD5C0; stroke-width: 1; }
     :root:not([data-theme]) .eq-area { fill: url(#eqg); opacity: 1; }
     :root:not([data-theme]) .eq-dot { fill: #6DD5C0; stroke: #FCFBF8; stroke-width: 2; }
     :root:not([data-theme]) .axis-text { fill: #8B8377; }
@@ -165,7 +165,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     :root:not([data-theme]) .bm-btn.active, :root:not([data-theme]) .cal-day.selected, :root:not([data-theme]) .cal-day.selected:hover { background: #6DD5C0; border-color: #6DD5C0; color: #063A30; }
     :root:not([data-theme]) .gl-line, :root:not([data-theme]) .gl-area-gain, :root:not([data-theme]) .gl-area-loss { display: none; }
     :root:not([data-theme]) .trades-chart { --gl-c: var(--eq-c); --gl-o: .30; }
-    :root:not([data-theme]) .gl-full { fill: none; stroke: var(--eq-c); stroke-width: 2.6; stroke-linejoin: round; stroke-linecap: round; }
+    :root:not([data-theme]) .gl-full { fill: none; stroke: var(--eq-c); stroke-width: 1; stroke-linejoin: round; stroke-linecap: round; }
     :root:not([data-theme]) .trades-chart .gl-dot { fill: var(--eq-c); stroke: #FCFBF8; stroke-width: 2; }
     :root:not([data-theme]) .chart { --eq-c: #6DD5C0; }
   }
