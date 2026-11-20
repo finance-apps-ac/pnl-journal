@@ -1387,10 +1387,11 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     if (y === "all") { var ys = years(); y = ys.length ? ys[0] : String(new Date().getFullYear()); }
     return y;
   }
-  function contribRGB(i) {  // 0..11 → purple → blue → cyan → green (cyan-weighted)
-    var t = i / 11;
+  function contribRGB(i) { return contribAt(i / 11); }   // month 0..11
+  function contribAt(t) {  // 0..1 along the year → purple → blue → cyan → green (dark) / sea glass → green (light)
+    t = Math.max(0, Math.min(1, t));
     var stops = contribLight()
-      ? [[0.00, 21, 146, 170], [0.45, 112, 214, 228], [0.55, 124, 232, 140], [1.00, 40, 150, 70]]   // light: darker cyan → lighter cyan → light neon green → darker green, smooth (Anna Nov 20)
+      ? [[0.000, 233, 214, 176], [0.333, 203, 189, 214], [0.667, 188, 211, 179], [1.000, 169, 221, 207]]   // light: soft pastels from the Budget calendar - sand, lavender, sage, mint (Anna Nov 20, "I love this")
       : [[0.00, 156, 107, 255], [0.20, 74, 163, 255], [0.50, 47, 211, 225], [0.82, 45, 220, 190], [1.00, 60, 235, 150]];
     for (var s = 0; s < stops.length - 1; s++) {
       var a = stops[s], b = stops[s + 1];
@@ -1471,6 +1472,20 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       arcs = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="var(--border)" stroke-opacity="0.5" stroke-width="' + w + '"/>';
     } else {
       var acc = 0, gap = 1.4;   // hairline gap so neighbouring slices read as distinct months
+      if (contribLight()) {    // light: one seamless ring - colour flows continuously, no visible month seams (Anna Nov 20)
+        var c0 = contribAt(0), mixC = function (a, b, u) { return [0, 1, 2].map(function (k) { return Math.round(a[k] + (b[k] - a[k]) * u); }); };
+        for (var m = 0; m < 12; m++) {
+          if (vals[m] <= 0) continue;
+          var L = (Math.sqrt(vals[m]) / sumW) * C, k = Math.max(2, Math.ceil(L / 1.6)), pl = L / k;
+          for (var j = 0; j < k; j++) {
+            var mid = acc + (j + .5) * pl, p = mid / C, col = contribAt((m + (j + .5) / k) / 12);
+            if (p > .94) col = mixC(col, c0, (p - .94) / .06);   // the end of the year melts back into January at the top
+            arcs += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="rgb(' + col.join(",") + ')" stroke-width="' + w +
+              '" stroke-dasharray="' + (pl + .7).toFixed(2) + ' ' + (C - pl - .7).toFixed(2) + '" stroke-dashoffset="' + (-(acc + j * pl)).toFixed(2) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')"/>';
+          }
+          acc += L;
+        }
+      } else
       for (var i = 0; i < 12; i++) {
         if (vals[i] <= 0) continue;
         var len = (Math.sqrt(vals[i]) / sumW) * C;
