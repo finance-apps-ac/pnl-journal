@@ -136,6 +136,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   :root[data-theme="light"] .pc-c.wk { border: 1px solid #A9E2D6; background: #FDFCF9; }
   :root[data-theme="light"] .pc-sum div { background: #F4F2ED; border-radius: 14px; }
   :root[data-theme="light"] .bs-btn.active[data-mode="buy"], :root[data-theme="light"] .bs-btn.active[data-mode="sell"] { color: #FFFFFF; font-weight: 700; }
+  :root[data-theme="light"] .donut-total { font-family: var(--font-ui); font-weight: 600; letter-spacing: -.8px; }
   :root[data-theme="light"] .tile .value, :root[data-theme="light"] .pc-sum b, :root[data-theme="light"] .pc-c .v { font-family: var(--font-ui); font-variant-numeric: tabular-nums; }
   :root[data-theme="light"] .tile .value { font-weight: 600; letter-spacing: -.8px; font-size: 26px; }
   :root[data-theme="light"] #tiles .tile:first-child { background: #2A241E; border-color: #2A241E; box-shadow: 0 10px 26px rgba(42,36,30,.22); }
@@ -168,6 +169,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     :root:not([data-theme]) .pc-c.wk { border: 1px solid #A9E2D6; background: #FDFCF9; }
     :root:not([data-theme]) .pc-sum div { background: #F4F2ED; border-radius: 14px; }
     :root:not([data-theme]) .bs-btn.active[data-mode="buy"], :root:not([data-theme]) .bs-btn.active[data-mode="sell"] { color: #FFFFFF; font-weight: 700; }
+    :root:not([data-theme]) .donut-total { font-family: var(--font-ui); font-weight: 600; letter-spacing: -.8px; }
     :root:not([data-theme]) .tile .value, :root:not([data-theme]) .pc-sum b, :root:not([data-theme]) .pc-c .v { font-family: var(--font-ui); font-variant-numeric: tabular-nums; }
     :root:not([data-theme]) .tile .value { font-weight: 600; letter-spacing: -.8px; font-size: 26px; }
     :root:not([data-theme]) #tiles .tile:first-child { background: #2A241E; border-color: #2A241E; box-shadow: 0 10px 26px rgba(42,36,30,.22); }
@@ -1391,7 +1393,9 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   }
   function contribRGB(i) {  // 0..11 → purple → blue → cyan → green (cyan-weighted)
     var t = i / 11;
-    var stops = [[0.00, 156, 107, 255], [0.20, 74, 163, 255], [0.50, 47, 211, 225], [0.82, 45, 220, 190], [1.00, 60, 235, 150]];
+    var stops = contribLight()
+      ? [[0.00, 233, 174, 53], [0.38, 51, 205, 217], [0.68, 109, 213, 192], [1.00, 63, 145, 71]]   // light: amber → cyan → sea glass → green
+      : [[0.00, 156, 107, 255], [0.20, 74, 163, 255], [0.50, 47, 211, 225], [0.82, 45, 220, 190], [1.00, 60, 235, 150]];
     for (var s = 0; s < stops.length - 1; s++) {
       var a = stops[s], b = stops[s + 1];
       if (t <= b[0]) {
@@ -1401,6 +1405,16 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     }
     var z = stops[stops.length - 1]; return [z[1], z[2], z[3]];
   }
+  /* Light mode has its own month colours (amber → cyan → sea glass → green); redraw when the theme changes. */
+  function contribLight() {
+    var a = document.documentElement.getAttribute("data-theme");
+    if (a) return a === "light";
+    try { return matchMedia("(prefers-color-scheme: light)").matches; } catch (e) { return false; }
+  }
+  try {
+    new MutationObserver(function () { renderContrib(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    matchMedia("(prefers-color-scheme: light)").addEventListener("change", function () { renderContrib(); });
+  } catch (e) {}
   function contribColor(i) { var c = contribRGB(i); return "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")"; }
   function contribRGBA(i, a) { var c = contribRGB(i); return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + a + ")"; }
   function renderContrib() {
