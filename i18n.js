@@ -10,8 +10,8 @@
   "use strict";
   var KEY = "app.lang";
   var D = window.I18N_DICT || {};
-  var NAMES = { auto: "Auto", en: "English", pt: "Português", ru: "Русский", es: "Español", de: "Deutsch" };
-  var ORDER = ["auto", "en", "pt", "ru", "es", "de"];
+  var NAMES = { auto: "Auto", en: "English", pt: "Português", ru: "Русский", es: "Español", de: "Deutsch", fr: "Français", ja: "日本語", ko: "한국어" };
+  var ORDER = ["auto", "en", "pt", "ru", "es", "de", "fr", "ja", "ko"];   // a language shows in the picker only when this app has its dictionary
   var ATTRS = ["placeholder", "title", "aria-label"];
   var pref = "auto";
   try { pref = localStorage.getItem(KEY) || "auto"; } catch (e) {}
@@ -226,9 +226,10 @@
   }
 
   /* Currency (display only, amounts are never converted). Apps that want it set window.I18N_CURRENCY = true
-     before this file loads (Budget). "auto" follows the phone's region: Brazil R$, Russia ₽, euro countries €, UK £, else $. */
-  var CKEY = "app.currency", CURS = ["auto", "USD", "EUR", "BRL", "RUB", "GBP"];
-  var CSYM = { USD: "$", EUR: "€", BRL: "R$", RUB: "₽", GBP: "£" };
+     before this file loads (Budget). "auto" follows the phone's region: Brazil R$, Russia ₽, euro countries €, UK £, Japan ¥, Korea ₩, else $.
+     Yen and won have no cents, so they always show whole amounts. */
+  var CKEY = "app.currency", CURS = ["auto", "USD", "EUR", "BRL", "RUB", "GBP", "JPY", "KRW"];
+  var CSYM = { USD: "$", EUR: "€", BRL: "R$", RUB: "₽", GBP: "£", JPY: "¥", KRW: "₩" };
   var EURO = "AT BE CY DE EE ES FI FR GR HR IE IT LT LU LV MT NL PT SI SK".split(" ");
   var curPref = "auto";
   try { curPref = localStorage.getItem(CKEY) || "auto"; } catch (e) {}
@@ -237,9 +238,9 @@
     for (var i = 0; i < list.length; i++) {
       var parts = String(list[i] || "").split("-"), lg = (parts[0] || "").toLowerCase(), rg = "";
       for (var j = 1; j < parts.length; j++) if (/^[A-Za-z]{2}$/.test(parts[j])) { rg = parts[j].toUpperCase(); break; }
-      if (rg === "BR") return "BRL"; if (rg === "RU") return "RUB"; if (rg === "GB") return "GBP";
+      if (rg === "BR") return "BRL"; if (rg === "RU") return "RUB"; if (rg === "GB") return "GBP"; if (rg === "JP") return "JPY"; if (rg === "KR") return "KRW";
       if (EURO.indexOf(rg) >= 0) return "EUR"; if (rg) return "USD";
-      if (lg === "ru") return "RUB"; if (lg === "pt") return "BRL"; if (lg === "de" || lg === "es" || lg === "fr" || lg === "it" || lg === "nl") return "EUR";
+      if (lg === "ru") return "RUB"; if (lg === "pt") return "BRL"; if (lg === "ja") return "JPY"; if (lg === "ko") return "KRW"; if (lg === "de" || lg === "es" || lg === "fr" || lg === "it" || lg === "nl") return "EUR";
       if (lg === "en") return "USD";
     }
     return "USD";
@@ -249,10 +250,11 @@
   /* number locale: Spanish with euros reads like Spain ("4200 €"), Spanish with dollars like Latin America ("$4,200") */
   function numLoc() { return lang === "en" ? "en-US" : lang === "es" ? (currency === "EUR" ? "es-ES" : "es-419") : lang; }
   function fmt(digits) {
+    if (currency === "JPY" || currency === "KRW") digits = 0;
     var k = currency + digits;
     if (!fmtCache[k]) {
       var loc = numLoc(), o = { style: "currency", currency: currency, minimumFractionDigits: digits, maximumFractionDigits: digits };
-      if (lang === "es" && currency === "USD") o.currencyDisplay = "narrowSymbol";   // "$", not "US$"
+      if (currency === "USD" && /^(es|fr|ja|ko)$/.test(lang)) o.currencyDisplay = "narrowSymbol";   // "$", not "US$" / "$US"
       try { fmtCache[k] = new Intl.NumberFormat(loc, o); }
       catch (e) {
         try { delete o.currencyDisplay; fmtCache[k] = new Intl.NumberFormat(loc, o); }
@@ -302,7 +304,12 @@
     get lang() { return lang; }, get pref() { return pref; },
     t: function (s) { return tr(s); },
     /* a comma list from the dictionary, e.g. list("__dow") -> ["D","S","T",...]; null in English */
-    list: function (k) { var x = lang !== "en" && D[lang] && D[lang][k]; return x ? x.split(",") : null; }, set: set, walk: walk, trData: trData, names: NAMES
+    list: function (k) { var x = lang !== "en" && D[lang] && D[lang][k]; return x ? x.split(",") : null; }, set: set, walk: walk, trData: trData, names: NAMES,
+    /* date order with an already translated month name: Japanese/Korean write year, month, day ("2026年11月19日", "2026년 11월 19일"),
+       the other non-English languages day first ("19 Nov 2026") */
+    ym: function (y, mon) { return lang === "ja" ? y + "年" + mon : lang === "ko" ? y + "년 " + mon : mon + " " + y; },
+    dm: function (d, mon) { return lang === "ja" ? mon + d + "日" : lang === "ko" ? mon + " " + d + "일" : d + " " + mon; },
+    dmy: function (d, mon, y) { return lang === "ja" ? y + "年" + mon + d + "日" : lang === "ko" ? y + "년 " + mon + " " + d + "일" : d + " " + mon + " " + y; }
   };
   if (window.DEMO_SEED && lang !== "en") trData(window.DEMO_SEED, ["name", "note", "notes", "shift"]);
   if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
