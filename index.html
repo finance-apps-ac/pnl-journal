@@ -146,12 +146,11 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   :root[data-theme="light"] .chart { --eq-c: #6DD5C0; }
   :root[data-theme="light"] .tile .value, :root[data-theme="light"] .pc-sum b, :root[data-theme="light"] .pc-c .v { font-family: var(--font-ui); font-variant-numeric: tabular-nums; }
   :root[data-theme="light"] .tile .value { font-weight: 600; letter-spacing: -.8px; font-size: 26px; }
-  :root[data-theme="light"] #tiles .tile:first-child { background: #4A3B30; border-color: #4A3B30; box-shadow: 0 10px 26px rgba(74,59,48,.22); }
-  :root[data-theme="light"] #tiles .tile:first-child .label { color: #7FDCC8; }
-  :root[data-theme="light"] #tiles .tile:first-child .sub { color: #CDBFAF; }
-  :root[data-theme="light"] #tiles .tile:first-child .value { color: #F4EBDD; }
-  :root[data-theme="light"] #tiles .tile:first-child .value.pos { color: #8FD49A; }
-  :root[data-theme="light"] #tiles .tile:first-child .value.neg { color: #F2A48A; }
+  :root[data-theme="light"] #tiles .tile:first-child { background: #8FD49A; border-color: #8FD49A; box-shadow: 0 6px 18px rgba(40,60,50,.10); }
+  :root[data-theme="light"] #tiles .tile:first-child .label { color: #7A4E0E; font-weight: 700; }
+  :root[data-theme="light"] #tiles .tile:first-child .sub { color: #7A5A22; font-weight: 500; }
+  :root[data-theme="light"] #tiles .tile:first-child .value, :root[data-theme="light"] #tiles .tile:first-child .value.pos, :root[data-theme="light"] #tiles .tile:first-child .value.neg { color: #1E1B17; }
+  :root[data-theme="light"] #tiles .tile:first-child .hn { color: #B06F08; font-weight: 700; }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme]) .tile, :root:not([data-theme]) .card { border-color: #E5E1D9; }
     :root:not([data-theme]) .tile .label { color: #1C9883; font-weight: 600; letter-spacing: .7px; }
@@ -186,12 +185,11 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     :root:not([data-theme]) .chart { --eq-c: #6DD5C0; }
     :root:not([data-theme]) .tile .value, :root:not([data-theme]) .pc-sum b, :root:not([data-theme]) .pc-c .v { font-family: var(--font-ui); font-variant-numeric: tabular-nums; }
     :root:not([data-theme]) .tile .value { font-weight: 600; letter-spacing: -.8px; font-size: 26px; }
-    :root:not([data-theme]) #tiles .tile:first-child { background: #4A3B30; border-color: #4A3B30; box-shadow: 0 10px 26px rgba(74,59,48,.22); }
-    :root:not([data-theme]) #tiles .tile:first-child .label { color: #7FDCC8; }
-    :root:not([data-theme]) #tiles .tile:first-child .sub { color: #CDBFAF; }
-    :root:not([data-theme]) #tiles .tile:first-child .value { color: #F4EBDD; }
-    :root:not([data-theme]) #tiles .tile:first-child .value.pos { color: #8FD49A; }
-    :root:not([data-theme]) #tiles .tile:first-child .value.neg { color: #F2A48A; }
+    :root:not([data-theme]) #tiles .tile:first-child { background: #8FD49A; border-color: #8FD49A; box-shadow: 0 6px 18px rgba(40,60,50,.10); }
+    :root:not([data-theme]) #tiles .tile:first-child .label { color: #7A4E0E; font-weight: 700; }
+    :root:not([data-theme]) #tiles .tile:first-child .sub { color: #7A5A22; font-weight: 500; }
+    :root:not([data-theme]) #tiles .tile:first-child .value, :root:not([data-theme]) #tiles .tile:first-child .value.pos, :root:not([data-theme]) #tiles .tile:first-child .value.neg { color: #1E1B17; }
+    :root:not([data-theme]) #tiles .tile:first-child .hn { color: #B06F08; font-weight: 700; }
   }
   :root[data-theme="dark"] {
     --pc-on: #0B1220; --pc-on-loss: #0B1220; --pc-a: 62%; --pc-sh: none; --pc-lo: 55%; --pc-rg: 41%;
@@ -1729,6 +1727,18 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
              '<div class="value ' + (t.cls || "") + '">' + t.value + '</div>' +
              '<div class="sub">' + (t.sub || "") + '</div></div>';
     }).join("");
+    setTimeout(markHeroCount, 60);
+  }
+  /* Light mode shows the hero card's trade count ("37" in "37 closed") in amber. Done after the language
+     layer has translated the line, so the number is found wherever the language puts it ("청산 37건"). */
+  function markHeroCount() {
+    var sub = document.querySelector("#tiles .tile:first-child .sub");
+    if (!sub || sub.querySelector(".hn")) return;
+    var tn = sub.firstChild; if (!tn || tn.nodeType !== 3) return;
+    var m = /\d[\d,.\u00a0\u202f]*/.exec(tn.nodeValue); if (!m) return;
+    var rest = tn.splitText(m.index), after = rest.splitText(m[0].length);
+    var span = document.createElement("span"); span.className = "hn"; span.textContent = rest.nodeValue;
+    sub.replaceChild(span, rest);
   }
 
   function years() {
