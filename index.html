@@ -1389,7 +1389,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   function contribRGB(i) {  // 0..11 → purple → blue → cyan → green (cyan-weighted)
     var t = i / 11;
     var stops = contribLight()
-      ? [[0.00, 233, 174, 53], [0.38, 51, 205, 217], [0.68, 109, 213, 192], [1.00, 63, 145, 71]]   // light: amber → cyan → sea glass → green
+      ? [[0.00, 202, 70, 48], [0.2727, 236, 150, 128], [0.3636, 128, 220, 203], [0.6364, 92, 200, 180], [0.7273, 126, 192, 128], [1.00, 63, 145, 71]]   // light: brick red → light cyan → green, three clean bands (Anna Nov 20, the Add a trade colours)
       : [[0.00, 156, 107, 255], [0.20, 74, 163, 255], [0.50, 47, 211, 225], [0.82, 45, 220, 190], [1.00, 60, 235, 150]];
     for (var s = 0; s < stops.length - 1; s++) {
       var a = stops[s], b = stops[s + 1];
