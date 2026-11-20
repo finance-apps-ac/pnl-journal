@@ -626,7 +626,8 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   .st-lock-cta b { font-size: 15px; color: var(--ink); } .st-lock-cta span { font-size: 12.5px; color: var(--ink-soft); max-width: 300px; line-height: 1.4; }
   .st-empty { color: var(--ink-faint); font-size: 13.5px; line-height: 1.5; padding: 6px 0 2px; }
   @media (max-width: 380px) { .st-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .st-row { grid-template-columns: minmax(0, 1.2fr) 40px 40px minmax(0, 1.4fr); } }
-  .contrib-donut { max-width: 250px; margin: 10px auto 8px; }
+  .contrib-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 16px; padding: 18px 16px; margin: 10px 0 12px; }   /* the circle in its own inset card (Anna Nov 20) */
+  .contrib-donut { max-width: 250px; margin: 0 auto; }
   .contrib-donut svg { width: 100%; height: auto; display: block; }
   .donut-total { fill: var(--ink); font-family: var(--font-mono); font-size: 27px; font-weight: 700; }
   .donut-sub { fill: var(--ink-faint); font-size: 11px; letter-spacing: 1px; }
@@ -890,7 +891,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       <h2>Portfolio contributions</h2>
       <span class="card-sub" id="contribTotal"></span>
     </div>
-    <div class="chart contrib-donut" id="contribDonut"></div>
+    <div class="contrib-box"><div class="chart contrib-donut" id="contribDonut"></div></div>
     <div class="table-wrap">
       <table id="contribTable">
         <thead><tr><th class="l">Month</th><th>Funds&nbsp;added</th></tr></thead>
@@ -1389,7 +1390,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   function contribRGB(i) {  // 0..11 → purple → blue → cyan → green (cyan-weighted)
     var t = i / 11;
     var stops = contribLight()
-      ? [[0.00, 202, 70, 48], [0.2727, 236, 150, 128], [0.3636, 128, 220, 203], [0.6364, 92, 200, 180], [0.7273, 126, 192, 128], [1.00, 63, 145, 71]]   // light: brick red → light cyan → green, three clean bands (Anna Nov 20, the Add a trade colours)
+      ? [[0.00, 21, 146, 170], [0.45, 112, 214, 228], [0.55, 124, 232, 140], [1.00, 40, 150, 70]]   // light: darker cyan → lighter cyan → light neon green → darker green, smooth (Anna Nov 20)
       : [[0.00, 156, 107, 255], [0.20, 74, 163, 255], [0.50, 47, 211, 225], [0.82, 45, 220, 190], [1.00, 60, 235, 150]];
     for (var s = 0; s < stops.length - 1; s++) {
       var a = stops[s], b = stops[s + 1];
