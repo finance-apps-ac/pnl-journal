@@ -712,6 +712,99 @@
     img.src = url;
   }
 
+  /* ---------------- how to use (Nov 21 2026): a short video recorded from the real app with sample data, plus the same steps as text.
+     The video has no words in it: the caption above it is the step text, so it follows the app language. The player stays dark like the video. ---------------- */
+  var HOWTO = {
+    len: "1 min, 6 steps",
+    marks: [0, 11.2, 16.55, 30.27, 44.09, 55.28],   // seconds where each step starts in howto.mp4 (lesson-builders/howto/pnl)
+    steps: [
+      "Log every buy and sell in “Add a trade”: pick Bought or Sold, then the symbol, quantity and price.",
+      "Your holdings update on their own. Tap “Live prices” for today’s value.",
+      "Each sale books its realized P&L: the dashboard, equity curve, monthly chart and calendar fill in automatically.",
+      "Tap ⤢ on a trade to tag its setup and mistakes, and your trading report shows what works.",
+      "Coming from a broker? “Import CSV” brings in your history (Pro).",
+      "Switch years with the year picker, and start a new one with “+ Year”."
+    ]
+  };
+  var HW_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6L19 12z" fill="currentColor"/></svg>';
+  var HW_AGAIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4.5v4h4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  function howtoSec() {
+    return '<div class="set-sec" id="set-howto-sec"><div class="set-lbl">How to use</div>' +
+      '<button type="button" class="hw-play" id="set-howto-play"><span class="hw-th"><img src="howto.jpg" alt=""><i><span>' + HW_PLAY + '</span></i></span>' +
+      '<span class="hw-tx"><b>Watch how it works</b><small>' + HOWTO.len + '</small></span></button>' +
+      '<ol class="hw-steps">' + HOWTO.steps.map(function (s) { return "<li><span>" + esc(s) + "</span></li>"; }).join("") + "</ol></div>";
+  }
+  function howtoCss() {
+    if (document.getElementById("hw-css")) return;
+    var s = document.createElement("style"); s.id = "hw-css";
+    s.textContent =
+      ".hw-play{display:flex;align-items:center;gap:14px;width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--bd);border-radius:14px;background:var(--s2);color:inherit;cursor:pointer;text-align:left;font:inherit;}" +
+      ".hw-th{position:relative;flex:none;width:56px;height:84px;border-radius:9px;overflow:hidden;background:#0A1120;}" +
+      ".hw-th img{width:100%;height:100%;object-fit:cover;display:block;}" +
+      ".hw-th i{position:absolute;inset:0;display:grid;place-items:center;background:rgba(6,10,20,.30);}" +
+      ".hw-th i span{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--acb,var(--ac));color:var(--acink);box-shadow:0 2px 10px rgba(0,0,0,.35);}" +
+      ".hw-th i svg{display:block;width:14px;height:14px;margin-left:2px;}" +
+      ".hw-tx b{display:block;font-size:15px;font-weight:700;margin-bottom:5px;}.hw-tx small{display:block;font-size:12.5px;color:var(--sf);}" +
+      ".hw-steps{list-style:none;margin:14px 0 2px;padding:0;counter-reset:hw;display:flex;flex-direction:column;gap:10px;}" +
+      ".hw-steps li{counter-increment:hw;display:flex;gap:10px;font-size:13px;line-height:1.45;color:var(--sf);}" +
+      ".hw-steps li::before{content:counter(hw);flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:700 11px/1 -apple-system,BlinkMacSystemFont,sans-serif;background:color-mix(in srgb,var(--ac) 16%,transparent);color:var(--ac);}" +
+      "#howto-ov{position:fixed;inset:0;z-index:2147483200;background:#060A14;display:none;justify-content:center;color:#EAF2FB;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}" +
+      ".hw-in{width:100%;max-width:440px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;padding:calc(10px + env(safe-area-inset-top,0px)) 22px calc(16px + env(safe-area-inset-bottom,0px));}" +
+      ".hw-top{display:flex;align-items:center;justify-content:space-between;min-height:42px;}" +
+      ".hw-k{font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.9px;text-transform:uppercase;color:#7FDCCB;}" +
+      ".hw-x{background:rgba(255,255,255,.09);border:0;color:#EAF2FB;width:36px;height:36px;border-radius:50%;font-size:15px;line-height:1;cursor:pointer;}" +
+      ".hw-cap{min-height:4.3em;margin:4px 0 12px;font-size:15.5px;font-weight:600;line-height:1.42;color:#EAF2FB;}" +
+      ".hw-v{flex:1;min-height:0;position:relative;display:grid;place-items:center;}" +
+      ".hw-v video{display:block;border-radius:18px;border:1px solid rgba(127,140,170,.25);background:#0A1120;object-fit:cover;}" +
+      ".hw-big{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:70px;height:70px;border-radius:50%;border:0;background:rgba(6,10,20,.7);color:#fff;display:none;place-items:center;cursor:pointer;padding:0;}" +
+      ".hw-big.on{display:grid;}.hw-big svg{width:30px;height:30px;}" +
+      ".hw-bar{display:flex;gap:6px;margin-top:12px;}" +
+      ".hw-bar button{flex:1;border:0;background:none;padding:8px 0;cursor:pointer;}" +
+      ".hw-bar i{display:block;position:relative;height:4px;border-radius:2px;background:rgba(255,255,255,.16);overflow:hidden;}" +
+      ".hw-bar b{position:absolute;left:0;top:0;bottom:0;width:0;background:#7FDCCB;}" +
+      "#howto-ov button:focus,#howto-ov button:focus-visible{outline:none;}";
+    document.head.appendChild(s);
+  }
+  function openHowto() {
+    howtoCss();
+    var o = document.getElementById("howto-ov"), M = HOWTO.marks, N = M.length;
+    if (!o) {
+      o = document.createElement("div"); o.id = "howto-ov"; o.setAttribute("role", "dialog"); o.setAttribute("aria-modal", "true"); o.setAttribute("aria-label", "How to use");
+      o.innerHTML = '<div class="hw-in"><div class="hw-top"><div class="hw-k"><span>Step</span> <span translate="no" id="hw-n"></span></div><button type="button" class="hw-x" id="hw-x" aria-label="Close">✕</button></div>' +
+        '<div class="hw-cap"><span id="hw-cap"></span></div>' +
+        '<div class="hw-v" id="hw-box"><video id="hw-v" playsinline webkit-playsinline muted preload="auto" poster="howto.jpg"></video><button type="button" class="hw-big" id="hw-big" aria-label="Play">' + HW_PLAY + '</button></div>' +
+        '<div class="hw-bar" id="hw-bar">' + M.map(function (_, i) { return '<button type="button" data-i="' + i + '" aria-label="' + (i + 1) + '"><i><b></b></i></button>'; }).join("") + "</div></div>";
+      document.body.appendChild(o);
+      var v = document.getElementById("hw-v"), big = document.getElementById("hw-big"), box = document.getElementById("hw-box"), bars = o.querySelectorAll("#hw-bar b"), cur = -1;
+      var fit = function () { var r = box.getBoundingClientRect(), w = Math.max(120, Math.min(r.width, r.height * 9 / 16)); v.style.width = w + "px"; v.style.height = w * 16 / 9 + "px"; };
+      var stepAt = function (t) { var i = 0; while (i + 1 < N && M[i + 1] <= t + 0.05) i++; return i; };
+      var paint = function () {
+        var t = v.currentTime || 0, d = v.duration || M[N - 1] + 10, i = v.ended ? N - 1 : stepAt(t);
+        if (i !== cur) { cur = i; document.getElementById("hw-n").textContent = (i + 1) + " / " + N; document.getElementById("hw-cap").textContent = HOWTO.steps[i]; }
+        for (var k = 0; k < N; k++) { var a = M[k], z = k + 1 < N ? M[k + 1] : d; bars[k].style.width = (v.ended || t >= z ? 100 : t <= a ? 0 : (t - a) / (z - a) * 100) + "%"; }
+      };
+      var loop = function () { paint(); if (!v.paused && o.style.display !== "none") requestAnimationFrame(loop); };
+      var showBig = function (again) { big.innerHTML = again ? HW_AGAIN : HW_PLAY; big.setAttribute("aria-label", again ? "Watch again" : "Play"); big.classList.add("on"); };
+      v.muted = true;
+      v.src = "howto.mp4";
+      v.addEventListener("play", function () { big.classList.remove("on"); requestAnimationFrame(loop); });
+      v.addEventListener("pause", function () { if (!v.ended) showBig(false); paint(); });
+      v.addEventListener("ended", function () { showBig(true); paint(); });
+      v.addEventListener("seeked", paint); v.addEventListener("loadedmetadata", paint);
+      v.addEventListener("click", function () { if (v.paused) v.play(); else v.pause(); });
+      big.addEventListener("click", function () { if (v.ended) v.currentTime = 0; v.play(); });
+      document.getElementById("hw-bar").addEventListener("click", function (e) { var b = e.target.closest("button[data-i]"); if (!b) return; v.currentTime = M[+b.getAttribute("data-i")] + 0.01; paint(); if (v.paused) v.play().catch(function () {}); });
+      var close = function () { v.pause(); o.style.display = "none"; };
+      document.getElementById("hw-x").onclick = close;
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape" && o.style.display !== "none") close(); });
+      window.addEventListener("resize", function () { if (o.style.display !== "none") fit(); });
+      o.__fit = fit; o.__paint = paint;
+    }
+    var vid = document.getElementById("hw-v");
+    o.style.display = "flex"; o.__fit(); try { vid.currentTime = 0; } catch (e) {} o.__paint();
+    var p = vid.play(); if (p && p.catch) p.catch(function () { document.getElementById("hw-big").classList.add("on"); });
+  }
+
   function openSettings() {
     var d = document.getElementById("set-scrim");
     if (d) { d.style.display = "grid"; refreshSettings(); setTimeout(reqPlaceholder, 60); return; }
@@ -739,6 +832,7 @@
             '<div class="set-av" id="set-av"></div><div class="set-hint" id="set-av-note"></div>' +
             '<input type="file" id="set-av-file" accept="image/*" hidden>' +
           '</div>' +
+          howtoSec() +
           '<div class="set-sec" id="set-req-sec"><div class="set-lbl">Requests &amp; feedback</div>' +
             '<div class="set-seg" id="set-req-type"><button data-r="New feature" class="on">New feature</button><button data-r="Feedback">Feedback</button></div>' +
             '<span id="set-req-hint" hidden>What would you like to see or tell us?</span>' +
@@ -764,6 +858,7 @@
     document.getElementById("set-exitdemo").onclick = exitDemo;
     document.getElementById("set-av-file").addEventListener("change", onAvatarFile);
     wireRequests();
+    howtoCss(); document.getElementById("set-howto-play").onclick = openHowto;
     var seg = document.getElementById("set-seg");
     Array.prototype.forEach.call(seg.querySelectorAll("button"), function (btn) {
       btn.onclick = function () { applyTheme(btn.getAttribute("data-t")); };
