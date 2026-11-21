@@ -68,11 +68,13 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     --accent: #2FD3E1;         /* cyan — brand & structure (the "2026" / header vibe) */
     --accent-soft: #0E2C36;
     --gain: #2FE79B;           /* mint green — gains (the income green) */
+    --gain-num: #7FDCCB;       /* gain NUMBERS only: mint sea-glass (Anna Nov 21) */
+    --gain-fill: #44AB9F;      /* monthly bars + report progress bars only: calm sea-glass (Anna Nov 21) */
     --gain-soft: #0C2A23;
     --loss: #FF5C72;           /* coral red — losses */
     --loss-soft: #2C1622;
-    --violet: #9C6BFF;         /* violet — secondary accent (the EXPENSES band) */
-    --violet-soft: #201A3B;
+    --violet: #A48BE3;         /* soft lilac (Anna Nov 21; was #9C6BFF) — tickers, secondary accent */
+    --violet-soft: #211C38;
     --blue: #4AA3FF;
     --shadow: 0 1px 2px rgba(0,0,0,.35), 0 14px 34px rgba(0,0,0,.42);
     --radius: 14px;
@@ -89,7 +91,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     --bg:#F1EFEA; --surface:#FCFBF8; --surface-2:#F4F2ED; --border:#E5E1D9;   /* Sand & Honey */
     --ink:#1E1B17; --ink-soft:#5B544B; --ink-faint:#8B8377;
     --accent:#1C9883; --accent-soft:#DDF3EE;
-    --gain:#3F9147; --gain-soft:#E2EFE3;
+    --gain:#3F9147; --gain-soft:#E2EFE3; --gain-fill:#3F9147; --gain-num:#3F9147;
     --loss:#CA4630; --loss-soft:#F8E2DC;
     --violet:#7E6A9E; --violet-soft:#ECE7F2;
     --blue:#5B7FA6;
@@ -103,7 +105,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       --bg:#F1EFEA; --surface:#FCFBF8; --surface-2:#F4F2ED; --border:#E5E1D9;   /* Sand & Honey */
       --ink:#1E1B17; --ink-soft:#5B544B; --ink-faint:#8B8377;
       --accent:#1C9883; --accent-soft:#DDF3EE;
-      --gain:#3F9147; --gain-soft:#E2EFE3;
+      --gain:#3F9147; --gain-soft:#E2EFE3; --gain-fill:#3F9147; --gain-num:#3F9147;
       --loss:#CA4630; --loss-soft:#F8E2DC;
       --violet:#7E6A9E; --violet-soft:#ECE7F2;
       --blue:#5B7FA6;
@@ -175,9 +177,9 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     --bg:#080D1A; --surface:#0F1728; --surface-2:#172139; --border:#26324E;
     --ink:#EAF2FB; --ink-soft:#94A4BF; --ink-faint:#647294;
     --accent:#2FD3E1; --accent-soft:#0E2C36;
-    --gain:#2FE79B; --gain-soft:#0C2A23;
+    --gain:#2FE79B; --gain-soft:#0C2A23; --gain-num:#7FDCCB; --gain-fill:#44AB9F;
     --loss:#FF5C72; --loss-soft:#2C1622;
-    --violet:#9C6BFF; --violet-soft:#201A3B;
+    --violet:#A48BE3; --violet-soft:#211C38;
     --blue:#4AA3FF;
     --shadow:0 1px 2px rgba(0,0,0,.35), 0 14px 34px rgba(0,0,0,.42);
   }
@@ -255,7 +257,8 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   @keyframes flashRow { 0%,70% { background: var(--gain-soft); } 100% { background: transparent; } }
   tr.flash-new > td { animation: flashRow 1.8s ease; }
-  .pos { color: var(--gain); } .neg { color: var(--loss); }
+  .pos { color: var(--gain-num, var(--gain)); } .neg { color: var(--loss); }
+  #calCard .pos { color: var(--gain); }   /* the calendar keeps its green (Anna Nov 21) */
 
   /* ---------- cards / charts ---------- */
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
@@ -277,7 +280,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   .eq-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
   .eq-dot { fill: var(--accent); }
   .zero-line { stroke: var(--ink-faint); stroke-width: 1; stroke-dasharray: 3 3; opacity: .55; }
-  .bar.gain { fill: var(--gain); } .bar.loss { fill: var(--loss); }
+  .bar.gain { fill: var(--gain-fill); } .bar.loss { fill: var(--loss); }
   /* ---- P&L calendar: every green and red day of a month ---- */
   .pc-card { margin-top: 14px; }
   .pc-nav { display: flex; align-items: center; gap: 6px; }
@@ -552,7 +555,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   .pnl-pill { display: inline-block; min-width: 66px; text-align: center; padding: 3px 10px;
               border-radius: 999px; font-weight: 600; font-family: var(--font-mono);
               font-variant-numeric: tabular-nums; font-size: 13px; }
-  .pnl-pill.pos { color: var(--gain); }
+  .pnl-pill.pos { color: var(--gain-num, var(--gain)); }
   .pnl-pill.neg { color: var(--loss); }
   .pnl-pill.flat { color: var(--ink-faint); }
   /* Buy price shown under the P&L — edit inline to correct a trade's cost basis. */
@@ -2712,7 +2715,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     var mx = Math.max.apply(null, grp.map(function (x) { return Math.abs(x.net); }).concat([1]));
     var table = '<div class="st-row h"><span>' + esc(T(tabs.filter(function (x) { return x[0] === statTab; })[0][1])) + '</span><span class="n">' + T("Trades") + '</span><span class="w">' + T("Win") + '</span><span>' + T("Net P&amp;L") + '</span></div>' +
       grp.map(function (x) { var wpx = Math.max(3, Math.round(Math.abs(x.net) / mx * 100));
-        return '<div class="st-row"><span class="nm">' + esc(label(x.k)) + '</span><span class="n">' + x.n + '</span><span class="w">' + Math.round(x.w / x.n * 100) + '%</span><span class="st-bar"><span style="width:' + (wpx * .42).toFixed(1) + '%;background:' + (x.net >= 0 ? "var(--gain)" : "var(--loss)") + '"></span><em class="' + cls(x.net) + '">' + signed(x.net) + '</em></span></div>'; }).join("");
+        return '<div class="st-row"><span class="nm">' + esc(label(x.k)) + '</span><span class="n">' + x.n + '</span><span class="w">' + Math.round(x.w / x.n * 100) + '%</span><span class="st-bar"><span style="width:' + (wpx * .42).toFixed(1) + '%;background:' + (x.net >= 0 ? "var(--gain-fill)" : "var(--loss)") + '"></span><em class="' + cls(x.net) + '">' + signed(x.net) + '</em></span></div>'; }).join("");
     var tagHint = (statTab === "setup" || statTab === "mistake") && !rows.some(function (r) { return setupOf(r.t) || (r.t.mistakes && r.t.mistakes.length); })
       ? '<div class="st-empty">' + T("Tag your trades to see this: tap <b>⤢</b> on any trade in All trades and pick its setup and any mistakes.") + '</div>' : "";
     body.innerHTML = '<ul class="st-ins">' + ins.map(li).join("") + '</ul>' +
