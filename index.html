@@ -538,7 +538,9 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   .w-net .lbl { font-size: 12px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .5px; }
   .w-net .lbl small { display: block; text-transform: none; letter-spacing: 0; color: var(--ink-faint); font-size: 11px; margin-top: 2px; font-family: var(--font-mono); }
   .w-net .amt { font-family: var(--font-mono); font-weight: 700; font-size: 22px; color: var(--accent); white-space: nowrap; }
-  .w-add { display: flex; gap: 8px; }
+  .w-add { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) auto; gap: 8px; }   /* grid: the date picker can no longer squeeze the amount box (Nov 20 fix) */
+  .w-add input { width: 100%; box-sizing: border-box; }
+  .w-add input.amt::-webkit-inner-spin-button, .w-add input.amt::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   .w-add input { background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; color: var(--ink); font-family: var(--font-mono); font-size: 13px; padding: 9px 10px; min-width: 0; }
   .w-add input[type=date] { flex: 1.4; color-scheme: dark; }
   .w-add input.amt { flex: 1; text-align: right; }
@@ -923,7 +925,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th class="l">Date</th><th>Withdrawn</th><th></th></tr></thead>
+        <thead><tr><th class="l">Date</th><th class="neg">Withdrawn</th><th></th></tr></thead>
         <tbody id="wBody"></tbody>
       </table>
     </div>
