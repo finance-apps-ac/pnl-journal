@@ -1472,7 +1472,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
       arcs = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="var(--border)" stroke-opacity="0.5" stroke-width="' + w + '"/>';
     } else {
       var acc = 0, gap = 1.4;   // hairline gap so neighbouring slices read as distinct months
-      if (contribLight()) {    // light: one seamless ring - colour flows continuously, no visible month seams (Anna Nov 20)
+      if (true) {    // one seamless ring in both themes - colour flows continuously, no visible month seams (Anna Nov 20)
         var c0 = contribAt(0), mixC = function (a, b, u) { return [0, 1, 2].map(function (k) { return Math.round(a[k] + (b[k] - a[k]) * u); }); };
         for (var m = 0; m < 12; m++) {
           if (vals[m] <= 0) continue;
