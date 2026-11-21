@@ -499,7 +499,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   .badge.open { background: var(--gain-soft); color: var(--gain); }
   .badge.pnl { background: color-mix(in srgb, var(--blue) 18%, transparent); color: var(--blue); }
   .del { color: var(--ink-faint); cursor: pointer; border: none; background: none; padding: 4px 6px; border-radius: 6px; font-size: 15px; }
-  .del:hover { color: var(--loss); background: var(--loss-soft); }
+  .del:hover { color: var(--loss); background: transparent; }   /* just the red cross, no red pill (Anna Nov 20) */
   .cost-input { width: 92px; background: var(--surface-2); border: 1px solid var(--border);
                 border-radius: 6px; padding: 5px 8px; font-size: 12.5px; font-family: var(--font-mono);
                 text-align: right; color: var(--ink); }
@@ -925,7 +925,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th class="l">Date</th><th class="neg">Withdrawn</th><th></th></tr></thead>
+        <thead><tr><th class="l">Date</th><th>Withdrawn</th><th></th></tr></thead>
         <tbody id="wBody"></tbody>
       </table>
     </div>
