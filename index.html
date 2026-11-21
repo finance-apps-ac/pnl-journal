@@ -1454,7 +1454,7 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
     t = Math.max(0, Math.min(1, t));
     var stops = contribLight()
       ? [[0.000, 233, 214, 176], [0.333, 203, 189, 214], [0.667, 188, 211, 179], [1.000, 169, 221, 207]]   // light: soft pastels from the Budget calendar - sand, lavender, sage, mint (Anna Nov 20, "I love this")
-      : [[0.00, 156, 107, 255], [0.20, 74, 163, 255], [0.50, 47, 211, 225], [0.82, 45, 220, 190], [1.00, 60, 235, 150]];
+      : [[0.00, 164, 139, 227], [0.50, 128, 168, 212], [1.00, 127, 220, 203]];   // dark: lilac -> sea-glass, the new P&L colors (Anna Nov 21, variant C)
     for (var s = 0; s < stops.length - 1; s++) {
       var a = stops[s], b = stops[s + 1];
       if (t <= b[0]) {
