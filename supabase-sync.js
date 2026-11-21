@@ -714,7 +714,7 @@
 
   function openSettings() {
     var d = document.getElementById("set-scrim");
-    if (d) { d.style.display = "grid"; refreshSettings(); return; }
+    if (d) { d.style.display = "grid"; refreshSettings(); setTimeout(reqPlaceholder, 60); return; }
     d = document.createElement("div");
     d.id = "set-scrim";
     d.innerHTML =
@@ -739,6 +739,13 @@
             '<div class="set-av" id="set-av"></div><div class="set-hint" id="set-av-note"></div>' +
             '<input type="file" id="set-av-file" accept="image/*" hidden>' +
           '</div>' +
+          '<div class="set-sec" id="set-req-sec"><div class="set-lbl">Requests &amp; feedback</div>' +
+            '<div class="set-seg" id="set-req-type"><button data-r="New feature" class="on">New feature</button><button data-r="Feedback">Feedback</button></div>' +
+            '<span id="set-req-hint" hidden>What would you like to see or tell us?</span>' +
+            '<textarea id="set-req-text" rows="3" maxlength="2000"></textarea>' +
+            '<button class="set-btn ghost" id="set-req-send">Send</button>' +
+            '<div class="set-hint" id="set-req-done" style="display:none">Your mail app opened with your message. Tap Send there and it reaches us. Thank you!</div>' +
+          '</div>' +
           '<div class="set-sec" id="set-sess-sec"><div class="set-lbl">Session</div><div class="set-stack">' +
             '<button class="set-btn ghost" id="set-logout">Log out</button>' +
             '<button class="set-btn danger" id="set-del">Delete account…</button>' +
@@ -756,11 +763,48 @@
     document.getElementById("set-del-go").onclick = deleteAccount;
     document.getElementById("set-exitdemo").onclick = exitDemo;
     document.getElementById("set-av-file").addEventListener("change", onAvatarFile);
+    wireRequests();
     var seg = document.getElementById("set-seg");
     Array.prototype.forEach.call(seg.querySelectorAll("button"), function (btn) {
       btn.onclick = function () { applyTheme(btn.getAttribute("data-t")); };
     });
     refreshSettings();
+  }
+
+  /* ---------------- requests & feedback (Nov 20 2026, same as Tradeology) ---------------- */
+  function reqPlaceholder() {   // textareas are skipped by i18n, so the hint comes from a translated hidden span
+    var h = document.getElementById("set-req-hint"), t = document.getElementById("set-req-text");
+    if (h && t) t.placeholder = h.textContent;
+  }
+  function wireRequests() {
+    var box = document.getElementById("set-req-type"), ta = document.getElementById("set-req-text"), btn = document.getElementById("set-req-send"), done = document.getElementById("set-req-done");
+    if (!box || !ta || !btn) return;
+    Array.prototype.forEach.call(box.querySelectorAll("button"), function (b) {
+      b.onclick = function () { Array.prototype.forEach.call(box.querySelectorAll("button"), function (x) { x.classList.toggle("on", x === b); }); };
+    });
+    ta.addEventListener("input", function () { done.style.display = "none"; if (btn.classList.contains("sent")) { btn.classList.remove("sent"); btn.textContent = "Send"; } });
+    btn.onclick = function () {
+      var txt = ta.value.replace(/[\u0000-\u0008\u000B-\u001F\u007F​-‏‪-‮⁦-⁩]/g, "").slice(0, 2000).trim();   // plain text only, max 2000
+      if (!txt) { ta.focus(); return; }
+      var on = box.querySelector("button.on"), kind = on ? on.getAttribute("data-r") : "Feedback";
+      var lang = ""; try { lang = localStorage.getItem("app.lang") || ""; } catch (e) {}
+      var plat = "web"; try { if (window.Capacitor && window.Capacitor.getPlatform) plat = window.Capacitor.getPlatform(); } catch (e) {}
+      if (plat !== "ios" && plat !== "android") plat = "web";
+      var name = cfg.name || cfg.app;
+      var mail = function () {   // fallback when the message can't reach the server: the mail app
+        var body = txt + "\n\n-\n" + name + " " + kind + (lang ? " · language " + lang : "") + " · " + plat;
+        window.location.href = "mailto:support@financelog.app?subject=" + encodeURIComponent(name + " " + (kind === "Feedback" ? "feedback" : "request: " + kind)) + "&body=" + encodeURIComponent(body);
+        ta.value = ""; done.style.display = "block";
+      };
+      if (!sb) return mail();
+      btn.disabled = true; btn.textContent = "Sending…";
+      sb.from("feedback").insert({ app: cfg.app, kind: kind, message: txt, lang: lang || null, platform: plat }).then(function (r) {
+        btn.disabled = false; btn.textContent = "Send";
+        if (r.error) return mail();
+        ta.value = ""; done.style.display = "none"; btn.textContent = "Sent"; btn.classList.add("sent");   // sent straight away: a green "Sent"
+      }, function () { btn.disabled = false; btn.textContent = "Send"; mail(); });
+    };
+    setTimeout(reqPlaceholder, 60);
   }
 
   /* ---------------- overlay / DOM ---------------- */
@@ -864,6 +908,12 @@
       + ".set-seg button{flex:1;border:0;background:none;color:var(--sf);font:600 13px -apple-system,sans-serif;padding:9px 0;border-radius:9px;cursor:pointer;}"
       + ".set-seg button.on{background:var(--acb,var(--ac));color:var(--acink);}"
       + ".set-stack{display:flex;flex-direction:column;gap:10px;}"
+      + "#set-modal{--am:#FFB547;--sent:#2FE79B;}:root[data-theme='light'] #set-modal{--am:#B9821A;--sent:#3F9147;}@media (prefers-color-scheme:light){:root:not([data-theme]) #set-modal{--am:#B9821A;--sent:#3F9147;}}"
+      + "#set-req-type button.on{background:none;color:var(--am);box-shadow:inset 0 0 0 1px var(--am);}"
+      + "#set-req-text{display:block;width:100%;box-sizing:border-box;margin:10px 0;min-height:84px;resize:vertical;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;color:inherit;font:400 14px/1.45 -apple-system,BlinkMacSystemFont,sans-serif;}"
+      + "#set-req-text:focus{outline:none;border-color:var(--ac);}"
+      + "#set-req-send.sent{color:var(--sent);border-color:var(--sent);}"
+      + "#set-modal button:focus,#set-modal button:focus-visible{outline:none;}"
       + ".set-danger{display:none;padding:12px;border:1px solid var(--cr);border-radius:12px;}"
       + ".set-danger p{font-size:12.5px;color:var(--sf);margin:0 0 10px;line-height:1.5;}"
       + ".set-cf{display:flex;gap:8px;}"
