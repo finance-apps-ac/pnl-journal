@@ -909,7 +909,7 @@
       + ".set-seg button.on{background:var(--acb,var(--ac));color:var(--acink);}"
       + ".set-stack{display:flex;flex-direction:column;gap:10px;}"
       + "#set-modal{--am:#FFB547;--sent:#2FE79B;}:root[data-theme='light'] #set-modal{--am:#B9821A;--sent:#3F9147;}@media (prefers-color-scheme:light){:root:not([data-theme]) #set-modal{--am:#B9821A;--sent:#3F9147;}}"
-      + "#set-req-type button.on{background:none;color:var(--am);box-shadow:inset 0 0 0 1px var(--am);}"
+      + "#set-req-type button.on{background:none;color:#D3DCE8;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ac) 55%,transparent);}:root[data-theme='light'] #set-req-type button.on{color:#3A342C;}@media (prefers-color-scheme:light){:root:not([data-theme]) #set-req-type button.on{color:#3A342C;}}"   // P&L: soft cyan outline (Anna Nov 20)
       + "#set-req-text{display:block;width:100%;box-sizing:border-box;margin:10px 0;min-height:84px;resize:vertical;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;color:inherit;font:400 14px/1.45 -apple-system,BlinkMacSystemFont,sans-serif;}"
       + "#set-req-text:focus{outline:none;border-color:var(--ac);}"
       + "#set-req-send.sent{color:var(--sent);border-color:var(--sent);}"
