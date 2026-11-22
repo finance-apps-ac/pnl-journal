@@ -202,6 +202,11 @@ document.addEventListener("gesturechange", function (e) { e.preventDefault(); },
   .app { max-width: 1120px; margin: 0 auto;
          padding: calc(28px + env(safe-area-inset-top)) calc(22px + env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) calc(22px + env(safe-area-inset-left)); }
 
+  /* the notch area keeps the page colour: scrolled cards never run under the clock */
+  body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top, 0px); background: var(--bg); z-index: 40; pointer-events: none; }
+  /* the page itself never slides sideways (only the tables do) */
+  html { overflow-x: hidden; } @supports (overflow: clip) { html, body { overflow-x: clip; } }
+
   /* ---------- header ---------- */
   .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
   .brand { display: flex; align-items: flex-start; gap: 13px; min-width: 0; }
